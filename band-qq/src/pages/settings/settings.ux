@@ -1,9 +1,11 @@
 <import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
+    <div class="top-row">
+      <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
+    </div>
     <div class="title-bar">
-      <image class="btn-back" src="../../common/ui/back.png" onclick="goBack"></image>
-      <text class="title">设置</text>
+      <text class="page-title">设置</text>
     </div>
     <div class="card row">
       <text class="row-label">互联状态</text>
@@ -24,7 +26,7 @@
     </list>
     <div class="add-bar">
       <text class="add-hint" onclick="openAdd">{{newWord || '新增快捷词'}}</text>
-      <text class="btn" onclick="addQuick">新增</text>
+      <text class="btn-add" onclick="addQuick">新增</text>
     </div>
     <input-method
       hide="{{addMode}}"
@@ -40,22 +42,23 @@
 </template>
 
 <style>
-  .page { width: 192px; height: 490px; flex-direction: column; background-color: #000000; }
-  .title-bar { width: 192px; height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
-  .btn-back { width: 102px; height: 72px; position: absolute; left: 0px; top: 6px; object-fit: contain; }
-  .title { font-size: 20px; color: #ffffff; line-height: 78px; text-align: center; }
+  .page { flex-direction: column; background-color: #000000; }
+  .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .btn { width: 102px; height: 72px; }
+  .title-bar { height: 40px; align-items: center; justify-content: center; }
+  .page-title { font-size: 24px; color: #ffffff; }
   .card { border-width: 1px; border-color: rgba(255, 255, 255, 0.06); border-radius: 16px; background-color: #262626; }
-  .row { width: 176px; height: 52px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
-  .row-label { font-size: 18px; color: #ffffff; }
-  .row-value { flex: 1; text-align: right; font-size: 18px; color: #07c160; }
+  .row { height: 52px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
+  .row-label { font-size: 20px; color: #ffffff; }
+  .row-value { flex: 1; text-align: right; font-size: 20px; color: #07c160; }
   .section { font-size: 16px; color: rgba(255, 255, 255, 0.6); padding: 8px 12px; }
-  .list { width: 192px; height: 132px; }
-  .quick-item { width: 176px; height: 44px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
-  .quick-text { flex: 1; font-size: 18px; color: #ffffff; }
-  .quick-del { font-size: 16px; color: #ff5a5a; }
-  .add-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
-  .add-hint { flex: 1; font-size: 18px; color: #666666; }
-  .btn { margin-left: 8px; height: 40px; line-height: 40px; padding: 0 16px; background-color: #07c160; color: #ffffff; font-size: 16px; border-radius: 8px; }
+  .list { height: 132px; }
+  .quick-item { height: 48px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
+  .quick-text { flex: 1; font-size: 20px; color: #ffffff; }
+  .quick-del { font-size: 18px; color: #ff5a5a; }
+  .add-bar { height: 72px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .add-hint { flex: 1; font-size: 20px; color: #666666; }
+  .btn-add { margin-left: 8px; padding: 12px 20px; background-color: #07c160; color: #ffffff; font-size: 20px; border-radius: 16px; }
 </style>
 
 <script>

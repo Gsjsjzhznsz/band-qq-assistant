@@ -1,9 +1,11 @@
 <import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
+    <div class="top-row">
+      <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
+    </div>
     <div class="title-bar">
-      <image class="btn-back" src="../../common/ui/back.png" onclick="goBack"></image>
-      <text class="title">{{name}}</text>
+      <text class="page-title">{{name}}</text>
     </div>
     <scroll class="msg-area" scroll-y="true">
       <div class="msg-item {{msg.sender_id === myId ? 'self' : 'other'}}" for="{{messages}}">
@@ -19,9 +21,11 @@
     </div>
     <div class="input-bar">
       <text class="input-preview" if="{{!inputOpen}}">{{draft || '点击输入消息'}}</text>
-      <image class="kb-icon" src="../../common/ui/kb_show.png" onclick="openInput"></image>
-      <image class="send-icon" if="{{inputOpen && draft}}" src="../../common/ui/send.png" onclick="sendDraft"></image>
-      <image class="kb-icon" if="{{inputOpen && !keyboardVisible}}" src="../../common/ui/kb_hide.png" onclick="closeInput"></image>
+      <div class="input-btns">
+        <image class="btn" src="../../common/ui/kb_show.png" onclick="openInput"></image>
+        <image class="btn" if="{{inputOpen && draft}}" src="../../common/ui/send.png" onclick="sendDraft"></image>
+        <image class="btn" if="{{inputOpen && !keyboardVisible}}" src="../../common/ui/kb_hide.png" onclick="closeInput"></image>
+      </div>
     </div>
     <input-method
       hide="{{keyboardVisible}}"
@@ -38,25 +42,25 @@
 </template>
 
 <style>
-  .page { width: 192px; height: 490px; flex-direction: column; background-color: #000000; }
-  .title-bar { width: 192px; height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
-  .btn-back { width: 102px; height: 72px; position: absolute; left: 0px; top: 6px; object-fit: contain; }
-  .title { font-size: 20px; color: #ffffff; line-height: 78px; text-align: center; }
-  .msg-area { width: 192px; height: 364px; }
+  .page { flex-direction: column; background-color: #000000; }
+  .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .btn { width: 102px; height: 72px; }
+  .title-bar { height: 40px; align-items: center; justify-content: center; }
+  .page-title { font-size: 24px; color: #ffffff; }
+  .msg-area { height: 200px; }
   .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
-  .bubble { max-width: 150px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
+  .bubble { max-width: 140px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
-  .quick-area { width: 192px; height: 128px; border-top: 1px solid #222222; }
-  .quick-scroll { width: 192px; height: 128px; }
-  .quick-row { width: 192px; height: 64px; flex-direction: row; align-items: center; }
-  .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 18px; color: #07c160; background-color: #101010; border-radius: 8px; }
-  .input-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
-  .input-preview { flex: 1; font-size: 18px; color: #666666; }
-  .kb-icon { width: 40px; height: 40px; object-fit: contain; }
-  .send-icon { width: 40px; height: 40px; margin-left: 4px; object-fit: contain; }
+  .quick-area { height: 128px; border-top: 1px solid #222222; }
+  .quick-scroll { height: 128px; }
+  .quick-row { height: 64px; flex-direction: row; align-items: center; }
+  .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 20px; color: #07c160; background-color: #101010; border-radius: 8px; }
+  .input-bar { height: 84px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .input-preview { flex: 1; font-size: 20px; color: #666666; }
+  .input-btns { flex-direction: row; align-items: center; justify-content: flex-end; }
 </style>
 
 <script>
