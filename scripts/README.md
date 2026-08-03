@@ -1,18 +1,17 @@
-# 构建脚本
+﻿# 构建脚本
 
-## rpk-pack.ps1 — 手环端 rpk 打包
+## rpk-pack.ps1 — 手环端 rpk 打包签名
 
 ```powershell
 .\scripts\rpk-pack.ps1 [-NoSign] [-OutDir <输出目录>]
 ```
 
-- 打包 `band-qq/` 为 `dist/bandqq.rpk`。
-- 默认生成/复用调试证书 `keystore.jks`（`keytool`，JDK 自带，密码 `bandqq123`）。
-- 自动从 `keystore.jks` 提取 AIoT-IDE 签名文件到 `band-qq/sign/debug/`（`private.pem` + `certificate.pem`），
-  与 Android release APK 使用同一证书。
-- 正式安装 rpk 请在 AIoT-IDE 中打包，签名指向 `band-qq/sign/debug/`。
+- 调用 `aiot-toolkit`（AIoT-IDE 官方命令行打包工具）把 `band-qq/` 打包并**签名**为 `dist/bandqq.release.rpk`。
+- 自动从 `keystore.jks` 提取 `private.pem` + `certificate.pem` 到 `band-qq/sign/{debug,release}/`，
+  供 aiot-toolkit 签名（release 模式使用 `sign/release/`）。
+- 使用与 Android release APK 同一证书（`keystore.jks`），满足互联签名前提。
 
-> 依赖：`keytool`（JDK）、`openssl`（Windows 上可用 Git 自带 `C:\Program Files\Git\usr\bin\openssl.exe`）。
+> 依赖：`keytool`（JDK）、`openssl`、`band-qq/node_modules` 已安装 `aiot-toolkit`（`cd band-qq && npm install`）。
 
 ## build-android.ps1 — Android 同步器构建
 
@@ -29,6 +28,6 @@
 
 构建完成后 `dist/` 下应有：
 - `app-debug.apk` / `app-release.apk`：Android 同步器
-- `bandqq.rpk`：手环端（正式版需 AIoT-IDE 重新签名打包）
+- `bandqq.release.rpk`：手环端（已用 `keystore.jks` 证书签名）
 
 三端使用同一证书（`keystore.jks`，指纹 `62:c7:81:8b...a1:90`），满足互联前提。

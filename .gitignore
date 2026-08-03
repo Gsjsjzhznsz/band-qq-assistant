@@ -13,3 +13,6 @@ build/
 .idea/
 *.iml
 .gradle/
+
+# “¿¿µ
+node_modules/

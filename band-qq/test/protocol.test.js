@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush } from '../common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush } from '../src/common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {

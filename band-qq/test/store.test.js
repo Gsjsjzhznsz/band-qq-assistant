@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { createStore } from '../common/store.js'
+import { createStore } from '../src/common/store.js'
 
 function mockStorage(initial) {
   const map = new Map(Object.entries(initial))

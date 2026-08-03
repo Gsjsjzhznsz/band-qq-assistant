@@ -2,7 +2,7 @@
   <div class="page">
     <text class="title" onclick="goSettings">{{statusText}} · {{appName}}</text>
     <list class="list">
-      <list-item type="conv" for="{{conversations}}" onclick="openChat({{$idx}})">
+      <list-item type="conv" for="{{(idx, item) in conversations}}" onclick="openChat(idx)">
         <div class="item">
           <div class="avatar">
             <text class="avatar-text">{{$item.name.charAt(0)}}</text>
@@ -68,12 +68,12 @@
     openChat(idx) {
       const conv = this.conversations[idx]
       router.push({
-        uri: '/pages/chat/chat',
+        uri: '/chat',
         params: { targetId: conv.id, name: conv.name }
       })
     },
     goSettings() {
-      router.push({ uri: '/pages/settings/settings' })
+      router.push({ uri: '/settings' })
     }
   }
 </script>

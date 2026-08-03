@@ -2,11 +2,13 @@
 # 用法: .\scripts\rpk-pack.ps1 [-NoSign] [-OutDir <输出目录>]
 #
 # 说明:
-#   - 打包 band-qq/ 目录为 rpk（Vela 快应用包）。
-#   - 默认生成/复用调试证书（keystore.jks），用于调试安装。
-#   - 真正的 Vela rpk 签名需在 AIoT-IDE 中配置（signing.md），
-#     本脚本生成的证书与包用于快速验证 / 走 AIoT-IDE 签名。
-#   - 要求: keytool（JDK）、tar（zip 打包，Windows 10+ 自带 tar 可打 zip）。
+#   - 用 aiot-toolkit（AIoT-IDE 官方命令行打包工具）把 band-qq/ 打包并签名成 release rpk。
+#   - 默认生成/复用证书 keystore.jks（与 Android release 一致），并提取
+#     sign/debug + sign/release 下的 private.pem + certificate.pem 供 aiot-toolkit 签名。
+#   - 要求:
+#       * keytool（JDK）生成/读取 keystore
+#       * openssl（Windows 可用 Git 自带 C:\Program Files\Git\usr\bin\openssl.exe）
+#       * band-qq/node_modules 已安装 aiot-toolkit（npm install）
 
 param(
     [switch]$NoSign,
@@ -42,56 +44,72 @@ if (-not $NoSign -and -not (Test-Path -LiteralPath $keystore)) {
     }
 }
 
-# 2. 打包 band-qq/ 为 zip（跳过 node_modules / 测试）
-$tmpZip = Join-Path $outDir "_bandqq_src.zip"
-$target = Join-Path $outDir "bandqq.rpk"
+# 2. 打包 band-qq/ 为已签名 rpk（调用 aiot-toolkit）
+#    要求: band-qq/node_modules 下已安装 aiot-toolkit（npm install），且 sign/release 下
+#          已有 private.pem + certificate.pem（见第 3 步）。
+$target = Join-Path $outDir "bandqq.release.rpk"
 
-Push-Location $bandDir
-try {
-    # tar 的 -a 自动按扩展名压缩；用 zip 输出需要先打成 zip 再改名
-    & tar -a -c -f $tmpZip `
-        --exclude="test" `
-        --exclude="node_modules" `
-        --exclude="sign" `
-        manifest.json app.ux common i18n pages
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "打包失败（tar 命令异常）。"
-        exit 1
+# 3. 从 keystore.jks 提取签名用的 private.pem / certificate.pem（aiot-toolkit 打包时使用）
+#    release 模式读取 sign/release/，build 模式读取 sign/debug/
+$signDirs = @{ "release" = Join-Path $bandDir "sign\release"; "debug" = Join-Path $bandDir "sign\debug" }
+$openssl = "$env:ProgramFiles\Git\usr\bin\openssl.exe"
+if (Test-Path -LiteralPath $openssl) {
+    foreach ($mode in @("release", "debug")) {
+        $signDir = $signDirs[$mode]
+        New-Item -ItemType Directory -Path $signDir -Force | Out-Null
+        $p12 = Join-Path $signDir "bandqq.p12"
+        $pem = Join-Path $signDir "bandqq.pem"
+        # jks -> p12（keytool stderr 重定向到文件避免误报）
+        $errFile = Join-Path $outDir "_keytool2_$mode.err"
+        cmd /c "keytool -importkeystore -srckeystore `"$keystore`" -destkeystore `"$p12`" -srcstoretype jks -deststoretype pkcs12 -storepass $storePass -srcstorepass $storePass -noprompt 2>`"$errFile`"" | Out-Null
+        Remove-Item -Force $errFile -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $p12) {
+            & $openssl pkcs12 -in $p12 -nodes -out $pem -passin pass:$storePass 2>&1 | Out-Null
+            $pemContent = Get-Content -Raw $pem
+            $priv = [regex]::Match($pemContent, '(?s)-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----').Value
+            $cert = [regex]::Match($pemContent, '(?s)-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----').Value
+            Set-Content -LiteralPath (Join-Path $signDir "private.pem") -Value $priv -Encoding ASCII
+            Set-Content -LiteralPath (Join-Path $signDir "certificate.pem") -Value $cert -Encoding ASCII
+            Write-Host "签名文件已生成: $signDir\private.pem / certificate.pem"
+            # 清理中间产物
+            Remove-Item -Force $p12, $pem -ErrorAction SilentlyContinue
+        }
     }
-} finally {
-    Pop-Location
 }
 
-Move-Item -Force $tmpZip $target
-
-# 3. 提取 AIoT-IDE 签名用的 private.pem / certificate.pem（供手环正式打包）
-$signDir = Join-Path $bandDir "sign\debug"
-if (-not $NoSign -and (Test-Path -LiteralPath $keystore)) {
-    New-Item -ItemType Directory -Path $signDir -Force | Out-Null
-    $openssl = "$env:ProgramFiles\Git\usr\bin\openssl.exe"
-    $p12 = Join-Path $signDir "bandqq.p12"
-    $pem = Join-Path $signDir "bandqq.pem"
-    # jks -> p12（keytool stderr 重定向到文件避免误报）
-    $errFile = Join-Path $outDir "_keytool2.err"
-    cmd /c "keytool -importkeystore -srckeystore `"$keystore`" -destkeystore `"$p12`" -srcstoretype jks -deststoretype pkcs12 -storepass $storePass -srcstorepass $storePass -noprompt 2>`"$errFile`"" | Out-Null
-    Remove-Item -Force $errFile -ErrorAction SilentlyContinue
-    if (Test-Path -LiteralPath $openssl) {
-        & $openssl pkcs12 -in $p12 -nodes -out $pem -passin pass:$storePass 2>&1 | Out-Null
-        $pemContent = Get-Content -Raw $pem
-        $priv = [regex]::Match($pemContent, '(?s)-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----').Value
-        $cert = [regex]::Match($pemContent, '(?s)-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----').Value
-        Set-Content -LiteralPath (Join-Path $signDir "private.pem") -Value $priv -Encoding ASCII
-        Set-Content -LiteralPath (Join-Path $signDir "certificate.pem") -Value $cert -Encoding ASCII
-        Write-Host "AIoT-IDE 签名文件已生成: $signDir\private.pem / certificate.pem"
+# 4. 运行 aiot-toolkit release 命令打包并签名
+if ($NoSign) {
+    Write-Host "已跳过 aiot-toolkit 打包（-NoSign）。签名材料仍在 $keystore。"
+    Write-Host "如需未签名包, 请直接修改 quickapp 后运行: cd band-qq && npm run build"
+} else {
+    $aiot = Join-Path $bandDir "node_modules\.bin\aiot.cmd"
+    if (Test-Path -LiteralPath $aiot) {
+        Push-Location $bandDir
+        try {
+            & $aiot release
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "aiot release 失败。请确认已 npm install（aiot-toolkit）。"
+                exit 1
+            }
+            # 复制产物到目标目录
+            $releaseRpk = Join-Path $bandDir "dist\com.example.bandqq.release.1.0.0.rpk"
+            if (Test-Path -LiteralPath $releaseRpk) {
+                Copy-Item -Force $releaseRpk $target
+            }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Error "未找到 aiot-toolkit ($aiot)。请先在 band-qq 目录运行 npm install。"
+        exit 1
     }
 }
 
 if ($NoSign) {
-    Write-Host "已生成（未签名）: $target"
+    Write-Host "已生成（未签名，打 zip 用 npm run build）: $target"
 } else {
-    Write-Host "已生成调试包（证书 $keystore）: $target"
-    Write-Host "提示: 正式安装请在 AIoT-IDE 中打包，将签名指向 band-qq/sign/debug/ 下的"
-    Write-Host "       private.pem 与 certificate.pem（与 Android release 证书一致）。"
+    Write-Host "已生成签名包: $target"
+    Write-Host "使用证书（keystore.jks，与 Android release 一致）签名，见 docs/signing.md。"
 }
 
 Write-Host "证书信息:"

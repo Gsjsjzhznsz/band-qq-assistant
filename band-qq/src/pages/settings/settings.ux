@@ -8,7 +8,7 @@
       <list-item type="quick" for="{{quickReplies}}">
         <div class="quick-item">
           <text class="quick-text">{{$item}}</text>
-          <text class="quick-del" onclick="removeQuick({{$idx}})">删</text>
+          <text class="quick-del" onclick="removeQuick($idx)">删</text>
         </div>
       </list-item>
     </list>

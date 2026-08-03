@@ -7,13 +7,11 @@
       </div>
     </scroll>
     <div class="quick-area">
-      <swiper class="swiper" indicator="none">
-        <swiper-item for="{{quickGroups}}">
-          <div class="quick-row" for="{{$item}}">
-            <text class="quick-word" onclick="sendQuick('{{$item}}')">{{$item}}</text>
-          </div>
-        </swiper-item>
-      </swiper>
+      <scroll class="quick-scroll" scroll-y="true">
+        <div class="quick-row" for="{{quickReplies}}">
+          <text class="quick-word" onclick="sendQuick($item)">{{$item}}</text>
+        </div>
+      </scroll>
     </div>
   </div>
 </template>
@@ -29,7 +27,7 @@
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
   .quick-area { height: 88px; }
-  .swiper { width: 192px; height: 88px; }
+  .quick-scroll { width: 192px; height: 88px; }
   .quick-row { width: 192px; height: 44px; flex-direction: row; }
   .quick-word { width: 92px; height: 40px; margin: 2px; text-align: center; line-height: 40px; font-size: 16px; color: #07c160; background-color: #101010; border-radius: 8px; }
 </style>

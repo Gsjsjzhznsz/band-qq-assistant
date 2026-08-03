@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { createApi } from '../common/api.js'
+import { createApi } from '../src/common/api.js'
 
 function mockInterconnect() {
   let conn
