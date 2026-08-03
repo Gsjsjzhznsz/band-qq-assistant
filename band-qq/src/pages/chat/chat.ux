@@ -1,6 +1,7 @@
 <import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
+    <div class="kb-mask" if="{{!keyboardVisible}}" onclick="closeInput"></div>
     <div class="top-row">
       <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
     </div>
@@ -43,6 +44,7 @@
 
 <style>
   .page { flex-direction: column; background-color: #000000; }
+  .kb-mask { position: absolute; left: 0px; top: 0px; width: 192px; height: 180px; }
   .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
   .title-bar { height: 40px; align-items: center; justify-content: center; }
