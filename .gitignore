@@ -1,0 +1,14 @@
+# 构建产物与本地配置
+keystore.jks
+keystore.p12
+keystore.pem
+local.properties
+dist/
+build/
+*.apk
+*.rpk
+
+# IDE
+.idea/
+*.iml
+.gradle/
