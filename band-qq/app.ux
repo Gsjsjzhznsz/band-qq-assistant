@@ -1,0 +1,12 @@
+/**
+ * 应用入口，暴露全局工具对象
+ */
+import api from './common/api'
+import protocol from './common/protocol'
+import store from './common/store'
+
+export default {
+  api,
+  protocol,
+  store
+}
