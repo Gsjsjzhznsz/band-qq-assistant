@@ -80,12 +80,13 @@ class OneBotParser {
     fun buildSendRequest(messageType: String, targetId: String, content: String): String {
         val body = JsonObject()
         val params = JsonObject()
+        val idAsLong = targetId.toLongOrNull()
         if (messageType == "group") {
             body.addProperty("action", "send_group_msg")
-            params.addProperty("group_id", targetId.toLongOrNull() ?: targetId)
+            if (idAsLong != null) params.addProperty("group_id", idAsLong) else params.addProperty("group_id", targetId)
         } else {
             body.addProperty("action", "send_private_msg")
-            params.addProperty("user_id", targetId.toLongOrNull() ?: targetId)
+            if (idAsLong != null) params.addProperty("user_id", idAsLong) else params.addProperty("user_id", targetId)
         }
         params.addProperty("message", content)
         body.add("params", params)

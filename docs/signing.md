@@ -5,12 +5,16 @@ App 的 applicationId 完全一致，且 rpk 用与手机 App 相同的证书签
 
 本项目统一使用包名：`com.example.bandqq`。
 
+> **本仓库现状**：`scripts/rpk-pack.ps1` 已生成 `keystore.jks`（仓库根目录，已 gitignore），
+> 密码 `bandqq123`、别名 `bandqq`。Android `app/build.gradle.kts` 的 release 签名已指向该证书。
+> 因此手环侧只需从同一 `keystore.jks` 提取 pem 供 AIoT-IDE 使用，即可保证与 APK 证书一致。
+
 ## 1. 从 jks 提取签名
 
 ```bash
-# 1. jks → p12
+# 1. jks → p12（keystore 密码均为 bandqq123）
 keytool -importkeystore -srckeystore keystore.jks -destkeystore keystore.p12 \
-  -srcstoretype jks -deststoretype pkcs12
+  -srcstoretype jks -deststoretype pkcs12 -storepass bandqq123 -srcstorepass bandqq123
 
 # 2. p12 → pem
 openssl pkcs12 -nodes -in keystore.p12 -out keystore.pem

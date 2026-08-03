@@ -4,7 +4,7 @@
 
 ## 导入与编译
 
-1. 安装华为 AIoT-IDE（IDE 下载：华为开发者官网「快应用开发工具」），导入本目录 `band-qq/`。
+1. 安装小米 AIoT-IDE（小米官方 Vela JS 应用开发工具，基于 VS Code，官网 `iot.mi.com/vela`），导入本目录 `band-qq/`。
 2. 在 AIoT-IDE 中打开 `manifest.json`，确认：
    - `package` 为 `com.example.bandqq`（必须与同步器 App 的 `applicationId` 一致）
    - `config.designWidth` 为 192

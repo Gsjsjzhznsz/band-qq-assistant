@@ -108,12 +108,12 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         })
     }
 
-    fun sendMessage(
+    override fun sendMessage(
         messageType: String,
         targetId: String,
         content: String,
-        httpUrlOverride: String? = null,
-        callback: (Boolean) -> Unit = {}
+        httpUrlOverride: String?,
+        callback: (Boolean) -> Unit
     ) {
         val baseUrl = httpUrlOverride ?: config.httpUrl
         val body = parser.buildSendRequest(messageType, targetId, content)

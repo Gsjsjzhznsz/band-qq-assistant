@@ -6,7 +6,13 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
 interface MessageSender {
-    fun sendMessage(messageType: String, targetId: String, content: String, callback: (Boolean) -> Unit)
+    fun sendMessage(
+        messageType: String,
+        targetId: String,
+        content: String,
+        httpUrlOverride: String? = null,
+        callback: (Boolean) -> Unit = {}
+    )
 }
 
 class MessageBroker(

@@ -15,9 +15,20 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val ks = rootProject.file("../keystore.jks")
+            storeFile = if (ks.exists()) ks else rootProject.file("keystore.jks")
+            storePassword = "bandqq123"
+            keyAlias = "bandqq"
+            keyPassword = "bandqq123"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

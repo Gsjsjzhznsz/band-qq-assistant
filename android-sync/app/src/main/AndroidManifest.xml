@@ -9,7 +9,7 @@
 
     <application
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppCompat.DayNight">
+        android:theme="@style/Theme.BandQQ">
 
         <activity
             android:name=".MainActivity"

@@ -3,7 +3,6 @@ package com.example.bandqq.sync
 import com.example.bandqq.onebot.OneBotMessage
 import com.example.bandqq.onebot.OneBotParser
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,13 +61,20 @@ class MessageBrokerTest {
     @Test
     fun `未知手环帧返回 false`() {
         val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
-        assertNull(broker.handleOneBotEvent(OneBotMessage("group", "1", "2", "n", "x", 0)))
+        val frame = broker.handleOneBotEvent(OneBotMessage("group", "1", "2", "n", "x", 0))
+        assertTrue(frame!!.contains("\"type\":\"push_message\""))
         assertTrue(!broker.onBandFrame("""{"type":"unknown"}"""))
     }
 }
 
 class FakeOneBot(private val onSend: (String, String, String) -> Boolean) : MessageSender {
-    override fun sendMessage(messageType: String, targetId: String, content: String, callback: (Boolean) -> Unit) {
+    override fun sendMessage(
+        messageType: String,
+        targetId: String,
+        content: String,
+        httpUrlOverride: String?,
+        callback: (Boolean) -> Unit
+    ) {
         callback(onSend(messageType, targetId, content))
     }
 }
