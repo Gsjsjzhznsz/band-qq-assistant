@@ -44,6 +44,12 @@
       this.refreshStatus()
       this.loadConversations()
     },
+    onInit() {
+      this.$app.$def.on('conversations', () => this.loadConversations())
+    },
+    onDestroy() {
+      this.$app.$def.off('conversations')
+    },
     async refreshStatus() {
       const api = this.$app.$def.api
       try {

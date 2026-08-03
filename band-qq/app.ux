@@ -5,8 +5,58 @@ import api from './common/api'
 import protocol from './common/protocol'
 import store from './common/store'
 
+const listeners = {}
+
+function emit(event, data) {
+  const set = listeners[event]
+  if (set) set.forEach((fn) => { try { fn(data) } catch (e) { console.error('emit error', event, e) } })
+}
+
+function handleMessage(msg) {
+  if (!msg || !msg.type) return
+  switch (msg.type) {
+    case 'push_message':
+      store.upsertMessage(msg)
+      emit('message', msg)
+      break
+    case 'conversation_list':
+      if (Array.isArray(msg.list)) store.setConversations(msg.list)
+      emit('conversations', msg.list)
+      break
+    case 'history_list':
+      if (Array.isArray(msg.list) && msg.target_id) {
+        store.setMessages(msg.target_id, msg.list)
+        emit('history', msg)
+      }
+      break
+    case 'connect_state':
+      emit('state', msg)
+      break
+    default:
+      break
+  }
+}
+
 export default {
   api,
   protocol,
-  store
+  store,
+  handleMessage,
+  on(event, fn) {
+    if (!listeners[event]) listeners[event] = []
+    listeners[event].push(fn)
+  },
+  off(event, fn) {
+    const set = listeners[event]
+    if (!set) return
+    if (!fn) {
+      listeners[event] = []
+      return
+    }
+    const idx = set.indexOf(fn)
+    if (idx >= 0) set.splice(idx, 1)
+  },
+  onCreate() {
+    api.init({ onMessage: handleMessage })
+  }
 }

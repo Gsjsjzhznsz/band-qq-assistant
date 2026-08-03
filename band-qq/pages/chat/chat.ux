@@ -49,9 +49,17 @@
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
       this.name = (params && params.name) || '聊天'
+      this.$app.$def.on('message', () => this.loadMessages())
+      this.$app.$def.on('history', (msg) => {
+        if (msg.target_id === this.targetId) this.loadMessages()
+      })
       this.requestHistory()
       this.loadMessages()
       this.loadQuickReplies()
+    },
+    onDestroy() {
+      this.$app.$def.off('message')
+      this.$app.$def.off('history')
     },
     onShow() {
       this.loadMessages()
