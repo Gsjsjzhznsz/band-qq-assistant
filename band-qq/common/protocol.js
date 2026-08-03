@@ -1,0 +1,48 @@
+let seq = 0
+
+export function nextSeq() {
+  seq += 1
+  return seq
+}
+
+export function sendMessage(messageType, targetId, content) {
+  return {
+    type: 'send_message',
+    seq: nextSeq(),
+    message_type: messageType,
+    target_id: targetId,
+    content: content
+  }
+}
+
+export function getConversations() {
+  return { type: 'get_conversations', seq: nextSeq() }
+}
+
+export function degradeContent(raw) {
+  if (typeof raw === 'string') return raw
+  if (!Array.isArray(raw)) return ''
+  return raw.map((seg) => {
+    if (seg.type === 'text') return (seg.data && seg.data.text) || ''
+    if (seg.type === 'image') return '[图片]'
+    if (seg.type === 'record' || seg.type === 'voice') return '[语音]'
+    if (seg.type === 'video') return '[视频]'
+    if (seg.type === 'file') return '[文件]'
+    return '[其他]'
+  }).join('')
+}
+
+export function decodePush(raw) {
+  if (!raw || raw.type !== 'push_message') return null
+  if (typeof raw.target_id !== 'string' || typeof raw.sender_id !== 'string') return null
+  return {
+    type: 'push_message',
+    seq: raw.seq || 0,
+    message_type: raw.message_type === 'group' ? 'group' : 'private',
+    target_id: raw.target_id,
+    sender_id: raw.sender_id,
+    sender_name: raw.sender_name || '',
+    content: typeof raw.content === 'string' ? raw.content : degradeContent(raw.content),
+    time: raw.time || Date.now()
+  }
+}
