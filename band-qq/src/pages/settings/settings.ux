@@ -1,49 +1,80 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
-    <text class="title">设置</text>
-    <text class="row">互联状态：{{statusText}}</text>
-    <text class="row">NapCat：{{napcatText}}</text>
+    <div class="title-bar">
+      <image class="btn-back" src="../../common/ui/back.png" onclick="goBack"></image>
+      <text class="title">设置</text>
+    </div>
+    <div class="card row">
+      <text class="row-label">互联状态</text>
+      <text class="row-value">{{statusText}}</text>
+    </div>
+    <div class="card row">
+      <text class="row-label">NapCat</text>
+      <text class="row-value">{{napcatText}}</text>
+    </div>
     <text class="section">快捷回复词</text>
     <list class="list">
-      <list-item type="quick" for="{{quickReplies}}">
-        <div class="quick-item">
+      <list-item type="quick" for="{{(idx, item) in quickReplies}}">
+        <div class="card quick-item">
           <text class="quick-text">{{$item}}</text>
           <text class="quick-del" onclick="removeQuick($idx)">删</text>
         </div>
       </list-item>
     </list>
-    <div class="add-row">
-      <input class="input" type="text" value="{{newWord}}" onchange="onInput"/>
+    <div class="add-bar">
+      <text class="add-hint" onclick="openAdd">{{newWord || '新增快捷词'}}</text>
       <text class="btn" onclick="addQuick">新增</text>
     </div>
+    <input-method
+      hide="{{addMode}}"
+      keyboardtype="QWERTY"
+      maxlength="5"
+      vibratemode="short"
+      screentype="pill-shaped"
+      @complete="onComplete"
+      @delete="onDelete"
+      @visibility-change="onVisibilityChange"
+    ></input-method>
   </div>
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; }
-  .title { height: 36px; line-height: 36px; font-size: 20px; color: #ffffff; padding-left: 12px; }
-  .row { font-size: 16px; color: #cccccc; padding: 6px 12px; }
-  .section { font-size: 18px; color: #07c160; padding: 8px 12px; }
-  .list { width: 192px; flex: 1; }
-  .quick-item { width: 192px; height: 40px; flex-direction: row; align-items: center; padding: 0 12px; }
+  .page { width: 192px; height: 490px; flex-direction: column; background-color: #000000; }
+  .title-bar { width: 192px; height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .btn-back { width: 102px; height: 72px; position: absolute; left: 0px; top: 6px; object-fit: contain; }
+  .title { font-size: 20px; color: #ffffff; line-height: 78px; text-align: center; }
+  .card { border-width: 1px; border-color: rgba(255, 255, 255, 0.06); border-radius: 16px; background-color: #262626; }
+  .row { width: 176px; height: 52px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
+  .row-label { font-size: 18px; color: #ffffff; }
+  .row-value { flex: 1; text-align: right; font-size: 18px; color: #07c160; }
+  .section { font-size: 16px; color: rgba(255, 255, 255, 0.6); padding: 8px 12px; }
+  .list { width: 192px; height: 132px; }
+  .quick-item { width: 176px; height: 44px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
   .quick-text { flex: 1; font-size: 18px; color: #ffffff; }
   .quick-del { font-size: 16px; color: #ff5a5a; }
-  .add-row { flex-direction: row; align-items: center; padding: 8px 12px; }
-  .input { flex: 1; height: 40px; background-color: #1f1f1f; color: #ffffff; font-size: 16px; border-radius: 8px; }
+  .add-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .add-hint { flex: 1; font-size: 18px; color: #666666; }
   .btn { margin-left: 8px; height: 40px; line-height: 40px; padding: 0 16px; background-color: #07c160; color: #ffffff; font-size: 16px; border-radius: 8px; }
 </style>
 
 <script>
+  import router from '@system.router'
+
   export default {
     private: {
       statusText: '未连接',
       napcatText: '未知',
       quickReplies: [],
-      newWord: ''
+      newWord: '',
+      addMode: true
     },
     onShow() {
       this.refreshStatus()
       this.loadQuick()
+    },
+    goBack() {
+      router.back()
     },
     async refreshStatus() {
       const api = this.$app.$def.api
@@ -58,13 +89,26 @@
       const store = this.$app.$def.store
       this.quickReplies = await store.getQuickReplies()
     },
-    onInput(e) {
-      this.newWord = e.value
+    openAdd() {
+      this.newWord = ''
+      this.addMode = false
+    },
+    onComplete(e) {
+      this.newWord += (e.detail && e.detail.content) || ''
+    },
+    onDelete() {
+      this.newWord = this.newWord.slice(0, -1)
+    },
+    onVisibilityChange(e) {
+      this.addMode = e.detail && e.detail.visible
     },
     async addQuick() {
+      const word = this.newWord.trim()
+      if (!word) return
       const store = this.$app.$def.store
-      await store.addQuickReply(this.newWord)
+      await store.addQuickReply(word)
       this.newWord = ''
+      this.addMode = true
       this.loadQuick()
     },
     async removeQuick(idx) {

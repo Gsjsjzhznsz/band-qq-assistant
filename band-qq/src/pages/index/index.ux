@@ -1,9 +1,12 @@
 <template>
   <div class="page">
-    <text class="title" onclick="goSettings">{{statusText}} · {{appName}}</text>
-    <list class="list">
+    <div class="title-bar">
+      <text class="title">{{statusText}} · {{appName}}</text>
+      <image class="btn-more" src="../../common/ui/more.png" onclick="goSettings"></image>
+    </div>
+    <list class="list" if="{{conversations.length}}">
       <list-item type="conv" for="{{(idx, item) in conversations}}" onclick="openChat(idx)">
-        <div class="item">
+        <div class="card item">
           <div class="avatar">
             <text class="avatar-text">{{$item.name.charAt(0)}}</text>
           </div>
@@ -14,21 +17,29 @@
         </div>
       </list-item>
     </list>
-    <text class="empty" if="{{!conversations.length}}">暂无会话</text>
+    <div class="empty-wrap" if="{{!conversations.length}}">
+      <image class="empty-icon" src="../../common/ui/empty_icon.png"></image>
+      <text class="empty-text">暂无会话</text>
+    </div>
   </div>
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; }
-  .title { height: 36px; line-height: 36px; font-size: 20px; color: #07c160; padding-left: 12px; }
-  .list { width: 192px; flex: 1; }
-  .item { width: 192px; height: 56px; flex-direction: row; align-items: center; }
+  .page { width: 192px; height: 490px; flex-direction: column; background-color: #000000; }
+  .title-bar { width: 192px; height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .title { font-size: 20px; color: #ffffff; line-height: 78px; text-align: center; }
+  .btn-more { width: 102px; height: 72px; position: absolute; right: 0px; top: 6px; object-fit: contain; }
+  .list { width: 192px; height: 406px; padding-top: 4px; }
+  .card { border-width: 1px; border-color: rgba(255, 255, 255, 0.06); border-radius: 16px; background-color: #262626; }
+  .item { width: 176px; height: 56px; flex-direction: row; align-items: center; margin: 4px 8px; }
   .avatar { width: 36px; height: 36px; border-radius: 18px; background-color: #1f1f1f; margin-right: 10px; margin-left: 8px; justify-content: center; align-items: center; }
   .avatar-text { font-size: 18px; color: #ffffff; }
   .item-body { flex: 1; flex-direction: column; }
-  .item-name { font-size: 20px; color: #ffffff; }
-  .item-sub { font-size: 14px; color: #888888; max-lines: 1; }
-  .empty { margin-top: 80px; text-align: center; font-size: 18px; color: #555555; }
+  .item-name { font-size: 18px; color: #ffffff; }
+  .item-sub { font-size: 14px; color: rgba(255, 255, 255, 0.6); max-lines: 1; }
+  .empty-wrap { width: 192px; height: 406px; flex-direction: column; justify-content: center; align-items: center; }
+  .empty-icon { width: 80px; height: 80px; object-fit: contain; }
+  .empty-text { margin-top: 12px; font-size: 18px; color: rgba(255, 255, 255, 0.5); }
 </style>
 
 <script>

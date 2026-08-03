@@ -1,7 +1,8 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
     <div class="title-bar">
-      <image class="title-icon" src="../../common/ui/back.png" onclick="goBack"></image>
+      <image class="btn-back" src="../../common/ui/back.png" onclick="goBack"></image>
       <text class="title">{{name}}</text>
     </div>
     <scroll class="msg-area" scroll-y="true">
@@ -9,47 +10,53 @@
         <text class="bubble {{msg.sender_id === myId ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
       </div>
     </scroll>
-    <div class="input-bar">
-      <image class="kb-icon" src="../../common/ui/kb_show.png" onclick="toggleInput"></image>
-      <text class="input-hint" if="{{!inputOpen}}" onclick="toggleInput">点击输入消息</text>
-      <div class="input-open" if="{{inputOpen}}">
-        <input class="chat-input" type="text" value="{{draft}}" oninput="onInput" onchange="onInput"/>
-        <image class="send-icon" src="../../common/ui/send.png" onclick="sendDraft"></image>
-        <image class="kb-icon" src="../../common/ui/kb_hide.png" onclick="toggleInput"></image>
-      </div>
-    </div>
-    <div class="quick-area" if="{{inputOpen}}">
+    <div class="quick-area" if="{{inputOpen && !keyboardVisible}}">
       <scroll class="quick-scroll" scroll-y="true">
         <div class="quick-row" for="{{quickReplies}}">
           <text class="quick-word" onclick="sendQuick($item)">{{$item}}</text>
         </div>
       </scroll>
     </div>
+    <div class="input-bar">
+      <text class="input-preview" if="{{!inputOpen}}">{{draft || '点击输入消息'}}</text>
+      <image class="kb-icon" src="../../common/ui/kb_show.png" onclick="openInput"></image>
+      <image class="send-icon" if="{{inputOpen && draft}}" src="../../common/ui/send.png" onclick="sendDraft"></image>
+      <image class="kb-icon" if="{{inputOpen && !keyboardVisible}}" src="../../common/ui/kb_hide.png" onclick="closeInput"></image>
+    </div>
+    <input-method
+      hide="{{keyboardVisible}}"
+      keyboardtype="QWERTY"
+      maxlength="5"
+      vibratemode="short"
+      screentype="pill-shaped"
+      @complete="onComplete"
+      @delete="onDelete"
+      @key-down="onKeyDown"
+      @visibility-change="onVisibilityChange"
+    ></input-method>
   </div>
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; }
-  .title-bar { width: 192px; height: 36px; flex-direction: row; align-items: center; }
-  .title-icon { width: 36px; height: 36px; padding: 8px; object-fit: contain; }
-  .title { flex: 1; font-size: 20px; color: #ffffff; text-align: center; }
-  .msg-area { width: 192px; flex: 1; }
+  .page { width: 192px; height: 490px; flex-direction: column; background-color: #000000; }
+  .title-bar { width: 192px; height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .btn-back { width: 102px; height: 72px; position: absolute; left: 0px; top: 6px; object-fit: contain; }
+  .title { font-size: 20px; color: #ffffff; line-height: 78px; text-align: center; }
+  .msg-area { width: 192px; height: 364px; }
   .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
   .bubble { max-width: 150px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
-  .input-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
-  .kb-icon { width: 40px; height: 40px; object-fit: contain; }
-  .input-hint { flex: 1; font-size: 18px; color: #666666; }
-  .input-open { flex: 1; flex-direction: row; align-items: center; }
-  .chat-input { flex: 1; height: 40px; background-color: #1f1f1f; color: #ffffff; font-size: 18px; border-radius: 8px; padding: 0 8px; }
-  .send-icon { width: 40px; height: 40px; margin-left: 4px; object-fit: contain; }
   .quick-area { width: 192px; height: 128px; border-top: 1px solid #222222; }
   .quick-scroll { width: 192px; height: 128px; }
   .quick-row { width: 192px; height: 64px; flex-direction: row; align-items: center; }
   .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 18px; color: #07c160; background-color: #101010; border-radius: 8px; }
+  .input-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .input-preview { flex: 1; font-size: 18px; color: #666666; }
+  .kb-icon { width: 40px; height: 40px; object-fit: contain; }
+  .send-icon { width: 40px; height: 40px; margin-left: 4px; object-fit: contain; }
 </style>
 
 <script>
@@ -63,6 +70,7 @@
       quickReplies: [],
       myId: 'me',
       inputOpen: false,
+      keyboardVisible: true,
       draft: ''
     },
     onInit(params) {
@@ -86,11 +94,27 @@
     goBack() {
       router.back()
     },
-    toggleInput() {
-      this.inputOpen = !this.inputOpen
+    openInput() {
+      this.inputOpen = true
+      this.keyboardVisible = false
     },
-    onInput(e) {
-      this.draft = e.value
+    closeInput() {
+      this.keyboardVisible = true
+      this.inputOpen = false
+    },
+    onComplete(e) {
+      this.draft += (e.detail && e.detail.content) || ''
+    },
+    onDelete() {
+      this.draft = this.draft.slice(0, -1)
+    },
+    onKeyDown(e) {
+      if (e.detail && e.detail.content) {
+        this.draft += e.detail.content
+      }
+    },
+    onVisibilityChange(e) {
+      this.keyboardVisible = e.detail && e.detail.visible
     },
     async sendDraft() {
       const content = this.draft.trim()

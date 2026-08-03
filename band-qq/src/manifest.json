@@ -11,7 +11,9 @@
     { "name": "system.interconnect" },
     { "name": "system.storage" },
     { "name": "system.router" },
-    { "name": "system.app" }
+    { "name": "system.app" },
+    { "name": "system.device" },
+    { "name": "system.vibrator" }
   ],
   "display": { "backgroundColor": "#000000" },
   "router": {
