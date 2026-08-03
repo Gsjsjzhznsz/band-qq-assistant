@@ -1,3 +1,14 @@
+<template>
+  <text class="app-root"></text>
+</template>
+
+<style>
+  .app-root {
+    display: none;
+  }
+</style>
+
+<script>
 /**
  * 应用入口，暴露全局工具对象
  */

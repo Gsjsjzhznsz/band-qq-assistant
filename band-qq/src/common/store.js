@@ -30,12 +30,16 @@ function createStorageAdapter(storageImpl) {
   }
 }
 
-let systemStoragePromise = null
+let systemStorage = null
 function resolveSystemStorage() {
-  if (!systemStoragePromise) {
-    systemStoragePromise = import('@system.storage').then((m) => m.default).catch(() => null)
+  if (!systemStorage) {
+    try {
+      systemStorage = require('@system.storage')
+    } catch (e) {
+      systemStorage = null
+    }
   }
-  return systemStoragePromise
+  return Promise.resolve(systemStorage)
 }
 
 export function createStore(storageImpl) {

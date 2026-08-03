@@ -1,10 +1,15 @@
 // 惰性获取系统 interconnect，避免在 Node 测试环境中解析 @system.interconnect（该模块仅存在于 Vela 运行时）
-let systemInterconnectPromise = null
+// 使用 Vela 快应用支持的 require() 方式加载系统模块
+let systemInterconnect = null
 function getSystemInterconnect() {
-  if (!systemInterconnectPromise) {
-    systemInterconnectPromise = import('@system.interconnect').then((m) => m.default)
+  if (!systemInterconnect) {
+    try {
+      systemInterconnect = require('@system.interconnect')
+    } catch (e) {
+      systemInterconnect = null
+    }
   }
-  return systemInterconnectPromise
+  return Promise.resolve(systemInterconnect)
 }
 
 export function createApi(interconnectImpl) {
