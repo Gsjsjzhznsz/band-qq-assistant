@@ -64,8 +64,16 @@
             android:id="@+id/probeBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="探测 NapCat"
+            android:text="自动探测 NapCat"
             android:paddingTop="8dp" />
+
+        <TextView
+            android:id="@+id/probeHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="探测会自动扫描本机常用端口并回填配置"
+            android:textSize="12sp"
+            android:paddingTop="4dp" />
 
         <Button
             android:id="@+id/startBtn"

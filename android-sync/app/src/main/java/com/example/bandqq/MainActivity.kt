@@ -3,17 +3,18 @@ package com.example.bandqq
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.databinding.ActivityMainBinding
+import com.example.bandqq.onebot.NapCatDetector
 import com.example.bandqq.sync.SyncService
 import com.example.bandqq.sync.SyncState
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -96,37 +96,39 @@ class MainActivity : AppCompatActivity() {
 
     private fun probeNapCat() {
         scope.launch {
-            val httpUrl = binding.httpInput.text.toString().trim().ifBlank { "http://127.0.0.1:3000" }
-            val ok = probeHttp(httpUrl)
-            if (ok) {
-                binding.statusText.text = "状态：NapCat 在线"
-                toast("NapCat 在线")
+            binding.statusText.text = "状态：正在探测 NapCat..."
+            val detected = NapCatDetector.detect(binding.httpInput.text.toString().trim())
+            if (detected != null) {
+                binding.wsInput.setText(detected.wsUrl)
+                binding.httpInput.setText(detected.httpUrl)
+                val cfg = ConfigHolder.config.copy(
+                    wsUrl = detected.wsUrl,
+                    httpUrl = detected.httpUrl,
+                    token = binding.tokenInput.text.toString().trim()
+                )
+                configManager.save(cfg)
+                binding.statusText.text = "状态：NapCat 在线（${detected.httpUrl}）"
+                toast("已自动探测到 NapCat，配置已保存")
             } else {
-                binding.statusText.text = "状态：NapCat 未响应，请检查是否已安装并登录 NapCat APK"
+                binding.statusText.text = "状态：未检测到 NapCat，请检查是否已安装并启动"
                 promptInstallNapCat()
             }
         }
     }
 
-    private suspend fun probeHttp(url: String): Boolean {
-        val client = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS).build()
-        return try {
-            val resp = client.newCall(Request.Builder().url(url).get().build()).execute()
-            resp.use { it.isSuccessful }
-        } catch (e: IOException) {
-            false
+    private fun promptInstallNapCat() {
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("未检测到 NapCat")
+                .setMessage("未在本机发现可用的 NapCat 服务。\n\nNapCat 是 QQ 机器人协议端，需先安装 Termux 再装 NapCat：\n\n1. 前往 F-Droid 官网下载安装 Termux（勿用 Google Play 版）\n2. 在 Termux 内执行：\n    curl -o install.sh https://ncat.wiki/binary/install_script/install.sh && bash install.sh\n3. 打开 NapCat WebUI（http://127.0.0.1:6099）扫码登录 QQ\n4. 回到本页点击“自动探测 NapCat”\n\n详细图文教程见项目 docs/napcat-usage.md")
+                .setPositiveButton("查看安装教程") { _, _ -> openTutorial() }
+                .setNegativeButton("关闭", null)
+                .show()
         }
     }
 
-    private fun promptInstallNapCat() {
-        runOnUiThread {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/linger-su/astrbot-termux/releases"))
-            try {
-                startActivity(intent)
-            } catch (e: Exception) {
-                toast("请手动访问 astrbot-termux releases 下载 NapCat APK")
-            }
-        }
+    private fun openTutorial() {
+        toast("请参照项目 docs/napcat-usage.md 的安装教程")
     }
 
     private fun refreshStatus() {
