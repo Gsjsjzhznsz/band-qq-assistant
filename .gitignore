@@ -2,6 +2,7 @@
 keystore.jks
 keystore.p12
 keystore.pem
+band-qq/sign/
 local.properties
 dist/
 build/

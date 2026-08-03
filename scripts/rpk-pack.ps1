@@ -52,6 +52,7 @@ try {
     & tar -a -c -f $tmpZip `
         --exclude="test" `
         --exclude="node_modules" `
+        --exclude="sign" `
         manifest.json app.ux common i18n pages
     if ($LASTEXITCODE -ne 0) {
         Write-Error "打包失败（tar 命令异常）。"
@@ -63,12 +64,34 @@ try {
 
 Move-Item -Force $tmpZip $target
 
+# 3. 提取 AIoT-IDE 签名用的 private.pem / certificate.pem（供手环正式打包）
+$signDir = Join-Path $bandDir "sign\debug"
+if (-not $NoSign -and (Test-Path -LiteralPath $keystore)) {
+    New-Item -ItemType Directory -Path $signDir -Force | Out-Null
+    $openssl = "$env:ProgramFiles\Git\usr\bin\openssl.exe"
+    $p12 = Join-Path $signDir "bandqq.p12"
+    $pem = Join-Path $signDir "bandqq.pem"
+    # jks -> p12（keytool stderr 重定向到文件避免误报）
+    $errFile = Join-Path $outDir "_keytool2.err"
+    cmd /c "keytool -importkeystore -srckeystore `"$keystore`" -destkeystore `"$p12`" -srcstoretype jks -deststoretype pkcs12 -storepass $storePass -srcstorepass $storePass -noprompt 2>`"$errFile`"" | Out-Null
+    Remove-Item -Force $errFile -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $openssl) {
+        & $openssl pkcs12 -in $p12 -nodes -out $pem -passin pass:$storePass 2>&1 | Out-Null
+        $pemContent = Get-Content -Raw $pem
+        $priv = [regex]::Match($pemContent, '(?s)-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----').Value
+        $cert = [regex]::Match($pemContent, '(?s)-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----').Value
+        Set-Content -LiteralPath (Join-Path $signDir "private.pem") -Value $priv -Encoding ASCII
+        Set-Content -LiteralPath (Join-Path $signDir "certificate.pem") -Value $cert -Encoding ASCII
+        Write-Host "AIoT-IDE 签名文件已生成: $signDir\private.pem / certificate.pem"
+    }
+}
+
 if ($NoSign) {
     Write-Host "已生成（未签名）: $target"
 } else {
     Write-Host "已生成调试包（证书 $keystore）: $target"
-    Write-Host "提示: 正式安装请用 AIoT-IDE 按 docs/signing.md 配签名重新打包，"
-    Write-Host "       确保证书与 Android 同步器 App 一致。"
+    Write-Host "提示: 正式安装请在 AIoT-IDE 中打包，将签名指向 band-qq/sign/debug/ 下的"
+    Write-Host "       private.pem 与 certificate.pem（与 Android release 证书一致）。"
 }
 
 Write-Host "证书信息:"
