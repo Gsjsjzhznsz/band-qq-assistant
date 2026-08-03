@@ -1,0 +1,73 @@
+<template>
+  <div class="page">
+    <text class="title" onclick="goSettings">{{statusText}} · {{appName}}</text>
+    <list class="list">
+      <list-item type="conv" for="{{conversations}}" onclick="openChat({{$idx}})">
+        <div class="item">
+          <div class="avatar">
+            <text class="avatar-text">{{$item.name.charAt(0)}}</text>
+          </div>
+          <div class="item-body">
+            <text class="item-name">{{$item.name}}</text>
+            <text class="item-sub">{{$item.last_msg}}</text>
+          </div>
+        </div>
+      </list-item>
+    </list>
+    <text class="empty" if="{{!conversations.length}}">暂无会话</text>
+  </div>
+</template>
+
+<style>
+  .page { flex-direction: column; background-color: #000000; }
+  .title { height: 36px; line-height: 36px; font-size: 20px; color: #07c160; padding-left: 12px; }
+  .list { width: 192px; flex: 1; }
+  .item { width: 192px; height: 56px; flex-direction: row; align-items: center; }
+  .avatar { width: 36px; height: 36px; border-radius: 18px; background-color: #1f1f1f; margin-right: 10px; margin-left: 8px; justify-content: center; align-items: center; }
+  .avatar-text { font-size: 18px; color: #ffffff; }
+  .item-body { flex: 1; flex-direction: column; }
+  .item-name { font-size: 20px; color: #ffffff; }
+  .item-sub { font-size: 14px; color: #888888; max-lines: 1; }
+  .empty { margin-top: 80px; text-align: center; font-size: 18px; color: #555555; }
+</style>
+
+<script>
+  import router from '@system.router'
+
+  export default {
+    private: {
+      appName: 'QQ助手',
+      statusText: '未连接',
+      conversations: []
+    },
+    onShow() {
+      this.refreshStatus()
+      this.loadConversations()
+    },
+    async refreshStatus() {
+      const api = this.$app.$def.api
+      try {
+        const ok = await api.connectStatus()
+        this.statusText = ok ? '已连接' : '未连接'
+      } catch (e) {
+        this.statusText = '未连接'
+      }
+    },
+    async loadConversations() {
+      const store = this.$app.$def.store
+      const api = this.$app.$def.api
+      this.conversations = await store.getConversations()
+      api.send({ type: 'get_conversations', seq: Date.now() % 100000 })
+    },
+    openChat(idx) {
+      const conv = this.conversations[idx]
+      router.push({
+        uri: '/pages/chat/chat',
+        params: { targetId: conv.id, name: conv.name }
+      })
+    },
+    goSettings() {
+      router.push({ uri: '/pages/settings/settings' })
+    }
+  }
+</script>

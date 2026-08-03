@@ -1,0 +1,108 @@
+<template>
+  <div class="page">
+    <text class="title">{{name}}</text>
+    <scroll class="msg-area" scroll-y="true">
+      <div class="msg-item {{msg.sender_id === myId ? 'self' : 'other'}}" for="{{messages}}">
+        <text class="bubble {{msg.sender_id === myId ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
+      </div>
+    </scroll>
+    <div class="quick-area">
+      <swiper class="swiper" indicator="none">
+        <swiper-item for="{{quickGroups}}">
+          <div class="quick-row" for="{{$item}}">
+            <text class="quick-word" onclick="sendQuick('{{$item}}')">{{$item}}</text>
+          </div>
+        </swiper-item>
+      </swiper>
+    </div>
+  </div>
+</template>
+
+<style>
+  .page { flex-direction: column; background-color: #000000; }
+  .title { height: 36px; line-height: 36px; font-size: 20px; color: #ffffff; padding-left: 12px; }
+  .msg-area { width: 192px; flex: 1; }
+  .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
+  .self { justify-content: flex-end; }
+  .other { justify-content: flex-start; }
+  .bubble { max-width: 150px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
+  .bubble-self { background-color: #07c160; color: #ffffff; }
+  .bubble-other { background-color: #1f1f1f; color: #ffffff; }
+  .quick-area { height: 88px; }
+  .swiper { width: 192px; height: 88px; }
+  .quick-row { width: 192px; height: 44px; flex-direction: row; }
+  .quick-word { width: 92px; height: 40px; margin: 2px; text-align: center; line-height: 40px; font-size: 16px; color: #07c160; background-color: #101010; border-radius: 8px; }
+</style>
+
+<script>
+  import router from '@system.router'
+
+  export default {
+    protected: {
+      targetId: '',
+      name: '',
+      messages: [],
+      quickReplies: [],
+      quickGroups: [],
+      myId: 'me'
+    },
+    onInit(params) {
+      this.targetId = (params && params.targetId) || ''
+      this.name = (params && params.name) || '聊天'
+      this.requestHistory()
+      this.loadMessages()
+      this.loadQuickReplies()
+    },
+    onShow() {
+      this.loadMessages()
+    },
+    requestHistory() {
+      const protocol = this.$app.$def.protocol
+      const api = this.$app.$def.api
+      api.send(protocol.getHistory(this.targetId, 50))
+    },
+    async loadMessages() {
+      const store = this.$app.$def.store
+      this.messages = await store.getMessages(this.targetId)
+    },
+    async loadQuickReplies() {
+      const store = this.$app.$def.store
+      const replies = await store.getQuickReplies()
+      this.quickReplies = replies.length ? replies : store.getDefaultQuickReplies()
+      this.quickGroups = this.chunk(this.quickReplies, 2)
+    },
+    chunk(arr, size) {
+      const out = []
+      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+      return out
+    },
+    async sendQuick(content) {
+      const protocol = this.$app.$def.protocol
+      const api = this.$app.$def.api
+      const messageType = await this.conversationType()
+      const msg = protocol.sendMessage(messageType, this.targetId, content)
+      try {
+        await api.send(msg)
+        const store = this.$app.$def.store
+        await store.upsertMessage({
+          type: 'push_message',
+          message_type: msg.message_type,
+          target_id: msg.target_id,
+          sender_id: 'me',
+          sender_name: '我',
+          content: content,
+          time: Date.now()
+        })
+        this.loadMessages()
+      } catch (e) {
+        console.error('send failed', e)
+      }
+    },
+    async conversationType() {
+      const store = this.$app.$def.store
+      const convs = await store.getConversations()
+      const c = convs.find((x) => x.id === this.targetId)
+      return c ? c.type : 'private'
+    }
+  }
+</script>

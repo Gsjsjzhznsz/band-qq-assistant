@@ -1,0 +1,76 @@
+<template>
+  <div class="page">
+    <text class="title">设置</text>
+    <text class="row">互联状态：{{statusText}}</text>
+    <text class="row">NapCat：{{napcatText}}</text>
+    <text class="section">快捷回复词</text>
+    <list class="list">
+      <list-item type="quick" for="{{quickReplies}}">
+        <div class="quick-item">
+          <text class="quick-text">{{$item}}</text>
+          <text class="quick-del" onclick="removeQuick({{$idx}})">删</text>
+        </div>
+      </list-item>
+    </list>
+    <div class="add-row">
+      <input class="input" type="text" value="{{newWord}}" onchange="onInput"/>
+      <text class="btn" onclick="addQuick">新增</text>
+    </div>
+  </div>
+</template>
+
+<style>
+  .page { flex-direction: column; background-color: #000000; }
+  .title { height: 36px; line-height: 36px; font-size: 20px; color: #ffffff; padding-left: 12px; }
+  .row { font-size: 16px; color: #cccccc; padding: 6px 12px; }
+  .section { font-size: 18px; color: #07c160; padding: 8px 12px; }
+  .list { width: 192px; flex: 1; }
+  .quick-item { width: 192px; height: 40px; flex-direction: row; align-items: center; padding: 0 12px; }
+  .quick-text { flex: 1; font-size: 18px; color: #ffffff; }
+  .quick-del { font-size: 16px; color: #ff5a5a; }
+  .add-row { flex-direction: row; align-items: center; padding: 8px 12px; }
+  .input { flex: 1; height: 40px; background-color: #1f1f1f; color: #ffffff; font-size: 16px; border-radius: 8px; }
+  .btn { margin-left: 8px; height: 40px; line-height: 40px; padding: 0 16px; background-color: #07c160; color: #ffffff; font-size: 16px; border-radius: 8px; }
+</style>
+
+<script>
+  export default {
+    private: {
+      statusText: '未连接',
+      napcatText: '未知',
+      quickReplies: [],
+      newWord: ''
+    },
+    onShow() {
+      this.refreshStatus()
+      this.loadQuick()
+    },
+    async refreshStatus() {
+      const api = this.$app.$def.api
+      try {
+        const ok = await api.connectStatus()
+        this.statusText = ok ? '已连接' : '未连接'
+      } catch (e) {
+        this.statusText = '未连接'
+      }
+    },
+    async loadQuick() {
+      const store = this.$app.$def.store
+      this.quickReplies = await store.getQuickReplies()
+    },
+    onInput(e) {
+      this.newWord = e.value
+    },
+    async addQuick() {
+      const store = this.$app.$def.store
+      await store.addQuickReply(this.newWord)
+      this.newWord = ''
+      this.loadQuick()
+    },
+    async removeQuick(idx) {
+      const store = this.$app.$def.store
+      await store.removeQuickReply(idx)
+      this.loadQuick()
+    }
+  }
+</script>
