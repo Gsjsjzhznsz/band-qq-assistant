@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, degradeContent, decodePush } from '../common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush } from '../common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {
@@ -19,6 +19,13 @@ describe('protocol', () => {
   it('构造 get_conversations 帧', () => {
     const msg = getConversations()
     assert.equal(msg.type, 'get_conversations')
+  })
+
+  it('构造 get_history 帧', () => {
+    const msg = getHistory('123', 30)
+    assert.equal(msg.type, 'get_history')
+    assert.equal(msg.target_id, '123')
+    assert.equal(msg.limit, 30)
   })
 
   it('降级非文本段', () => {

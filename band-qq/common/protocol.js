@@ -19,6 +19,10 @@ export function getConversations() {
   return { type: 'get_conversations', seq: nextSeq() }
 }
 
+export function getHistory(targetId, limit) {
+  return { type: 'get_history', seq: nextSeq(), target_id: targetId, limit: limit || 20 }
+}
+
 export function degradeContent(raw) {
   if (typeof raw === 'string') return raw
   if (!Array.isArray(raw)) return ''
