@@ -686,18 +686,205 @@ git commit -m "feat(android): OneBot WS/HTTP 客户端"
 
 ---
 
-### Task 5: 消息中枢 MessageBroker
+### Task 5: 消息存储 MessageStore
+
+**Files:**
+- Create: `android-sync/app/src/main/java/com/example/bandqq/sync/MessageStore.kt`
+- Test: `android-sync/app/src/test/java/com/example/bandqq/sync/MessageStoreTest.kt`
+
+**Interfaces:**
+- Consumes: 无（纯内存实现，后续可换持久化后端）。
+- Produces:
+  - `data class StoredMessage(messageType: String, senderId: String, senderName: String, content: String, time: Long)`
+  - `data class ConversationInfo(id: String, type: String, name: String, lastMsg: String, time: Long)`
+  - `class MessageStore`：
+    - `fun addMessage(targetId: String, msg: StoredMessage)` — 落库并更新会话。
+    - `fun getHistory(targetId: String, limit: Int): List<StoredMessage>` — 最近 limit 条。
+    - `fun getConversations(): List<ConversationInfo>` — 会话列表（按时间倒序）。
+    - `fun buildHistoryFrame(targetId: String, limit: Int, seq: Int): String` — 构造 `history_list` 帧。
+    - `fun buildConversationFrame(seq: Int): String` — 构造 `conversation_list` 帧。
+- 限制：每会话保留最近 200 条、会话 100 个，防膨胀。
+
+- [ ] **Step 1: 写失败测试**
+
+`android-sync/app/src/test/java/com/example/bandqq/sync/MessageStoreTest.kt`:
+```kotlin
+package com.example.bandqq.sync
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MessageStoreTest {
+
+    private val store = MessageStore()
+
+    @Test
+    fun `写入后能取回历史`() {
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val history = store.getHistory("123", 50)
+        assertEquals(1, history.size)
+        assertEquals("你好", history[0].content)
+    }
+
+    @Test
+    fun `会话按时间倒序`() {
+        store.addMessage("a", StoredMessage("group", "1", "A", "x", 100L))
+        store.addMessage("b", StoredMessage("group", "2", "B", "y", 200L))
+        val convs = store.getConversations()
+        assertEquals("b", convs[0].id)
+    }
+
+    @Test
+    fun `history_list 帧包含消息`() {
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val frame = store.buildHistoryFrame("123", 50, 4)
+        assertTrue(frame.contains("\"type\":\"history_list\""))
+        assertTrue(frame.contains("\"target_id\":\"123\""))
+        assertTrue(frame.contains("你好"))
+    }
+
+    @Test
+    fun `conversation_list 帧包含会话`() {
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val frame = store.buildConversationFrame(3)
+        assertTrue(frame.contains("\"type\":\"conversation_list\""))
+        assertTrue(frame.contains("\"id\":\"123\""))
+    }
+}
+```
+
+- [ ] **Step 2: 运行测试验证失败**
+
+运行（Android Studio 中）：`./gradlew :app:testDebugUnitTest`
+预期：FAIL（类不存在）。
+
+- [ ] **Step 3: 实现 MessageStore.kt**
+
+```kotlin
+package com.example.bandqq.sync
+
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+
+data class StoredMessage(
+    val messageType: String,
+    val senderId: String,
+    val senderName: String,
+    val content: String,
+    val time: Long
+)
+
+data class ConversationInfo(
+    val id: String,
+    val type: String,
+    val name: String,
+    val lastMsg: String,
+    val time: Long
+)
+
+class MessageStore {
+
+    private val messagesByTarget = LinkedHashMap<String, MutableList<StoredMessage>>()
+    private val MAX_MESSAGES = 200
+    private val MAX_CONVERSATIONS = 100
+
+    fun addMessage(targetId: String, msg: StoredMessage) {
+        val list = messagesByTarget.getOrPut(targetId) { mutableListOf() }
+        list.add(msg)
+        while (list.size > MAX_MESSAGES) list.removeAt(0)
+    }
+
+    fun getHistory(targetId: String, limit: Int): List<StoredMessage> {
+        val list = messagesByTarget[targetId] ?: return emptyList()
+        val from = (list.size - limit).coerceAtLeast(0)
+        return list.subList(from, list.size)
+    }
+
+    fun getConversations(): List<ConversationInfo> {
+        val out = mutableListOf<ConversationInfo>()
+        for ((id, list) in messagesByTarget) {
+            if (list.isEmpty()) continue
+            val last = list.last()
+            out.add(
+                ConversationInfo(
+                    id = id,
+                    type = last.messageType,
+                    name = last.senderName.ifBlank { id },
+                    lastMsg = last.content,
+                    time = last.time
+                )
+            )
+        }
+        out.sortByDescending { it.time }
+        return out.subList(0, out.size.coerceAtMost(MAX_CONVERSATIONS))
+    }
+
+    fun buildHistoryFrame(targetId: String, limit: Int, seq: Int): String {
+        val obj = JsonObject()
+        obj.addProperty("type", "history_list")
+        obj.addProperty("seq", seq)
+        obj.addProperty("target_id", targetId)
+        val arr = JsonArray()
+        for (m in getHistory(targetId, limit)) {
+            val o = JsonObject()
+            o.addProperty("message_type", m.messageType)
+            o.addProperty("sender_id", m.senderId)
+            o.addProperty("sender_name", m.senderName)
+            o.addProperty("content", m.content)
+            o.addProperty("time", m.time)
+            arr.add(o)
+        }
+        obj.add("list", arr)
+        return obj.toString()
+    }
+
+    fun buildConversationFrame(seq: Int): String {
+        val obj = JsonObject()
+        obj.addProperty("type", "conversation_list")
+        obj.addProperty("seq", seq)
+        val arr = JsonArray()
+        for (c in getConversations()) {
+            val o = JsonObject()
+            o.addProperty("id", c.id)
+            o.addProperty("type", c.type)
+            o.addProperty("name", c.name)
+            o.addProperty("last_msg", c.lastMsg)
+            o.addProperty("time", c.time)
+            arr.add(o)
+        }
+        obj.add("list", arr)
+        return obj.toString()
+    }
+}
+```
+
+- [ ] **Step 4: 运行测试验证通过**
+
+运行（Android Studio 中）：`./gradlew :app:testDebugUnitTest`
+预期：MessageStoreTest 全部 PASS。
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add android-sync/app/src/main/java/com/example/bandqq/sync/MessageStore.kt android-sync/app/src/test/java/com/example/bandqq/sync/MessageStoreTest.kt
+git commit -m "feat(android): 消息存储 MessageStore"
+```
+
+---
+
+### Task 6: 消息中枢 MessageBroker
 
 **Files:**
 - Create: `android-sync/app/src/main/java/com/example/bandqq/sync/MessageBroker.kt`
 - Test: `android-sync/app/src/test/java/com/example/bandqq/sync/MessageBrokerTest.kt`
 
 **Interfaces:**
-- Consumes: `OneBotParser`、`OneBotClient`、`OneBotListener`、手环帧对象。
+- Consumes: `OneBotParser`、`OneBotClient`、`MessageStore`、`OneBotListener`、手环帧对象。
 - Produces:
-  - `class MessageBroker(parser: OneBotParser, oneBot: OneBotClient)`：
-    - `fun onBandFrame(json: String): Boolean` — 处理手环消息，返回是否已处理。
-    - `fun handleOneBotEvent(msg: OneBotMessage): String?` — 转手环帧，返回 JSON 或 null。
+  - `class MessageBroker(parser: OneBotParser, oneBot: OneBotClient, store: MessageStore)`：
+    - `fun onBandFrame(json: String): Boolean` — 处理手环消息（send_message / get_history / get_conversations），返回是否已处理。
+    - `fun handleOneBotEvent(msg: OneBotMessage): String?` — 落库并转手环帧，返回 JSON 或 null。
     - `var bandSender: (String) -> Unit` — 回调，将 JSON 发回手环（由 InterconnectBridge 注入）。
 
 - [ ] **Step 1: 写失败测试**
@@ -721,7 +908,7 @@ class MessageBrokerTest {
     fun `handshake 发送消息帧被转发到 onebot`() {
         val sent = mutableListOf<Triple<String, String, String>>()
         val oneBot = FakeOneBot { t, id, c -> sent.add(Triple(t, id, c)); true }
-        val broker = MessageBroker(parser, oneBot)
+        val broker = MessageBroker(parser, oneBot, MessageStore())
         val handled = broker.onBandFrame("""{"type":"send_message","message_type":"group","target_id":"123","content":"收到"}""")
         assertTrue(handled)
         assertEquals("group", sent[0].first)
@@ -731,7 +918,7 @@ class MessageBrokerTest {
 
     @Test
     fun `onebot 事件转手环帧`() {
-        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true })
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
         val frame = broker.handleOneBotEvent(
             OneBotMessage("group", "123", "456", "张三", "你好", 1700000000L)
         )
@@ -740,8 +927,34 @@ class MessageBrokerTest {
     }
 
     @Test
+    fun `get_history 返回存储的最近消息`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
+        val out = mutableListOf<String>()
+        broker.bandSender = { out.add(it) }
+        val handled = broker.onBandFrame("""{"type":"get_history","seq":9,"target_id":"123","limit":20}""")
+        assertTrue(handled)
+        assertTrue(out[0].contains("\"type\":\"history_list\""))
+        assertTrue(out[0].contains("你好"))
+    }
+
+    @Test
+    fun `get_conversations 返回会话列表帧`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
+        val out = mutableListOf<String>()
+        broker.bandSender = { out.add(it) }
+        val handled = broker.onBandFrame("""{"type":"get_conversations","seq":9}""")
+        assertTrue(handled)
+        assertTrue(out[0].contains("\"type\":\"conversation_list\""))
+        assertTrue(out[0].contains("\"id\":\"123\""))
+    }
+
+    @Test
     fun `未知手环帧返回 false`() {
-        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true })
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
         assertNull(broker.handleOneBotEvent(OneBotMessage("group", "1", "2", "n", "x", 0)))
         assertTrue(!broker.onBandFrame("""{"type":"unknown"}"""))
     }
@@ -774,7 +987,8 @@ import com.google.gson.JsonParser
 
 class MessageBroker(
     private val parser: OneBotParser,
-    private val oneBot: OneBotClient
+    private val oneBot: OneBotClient,
+    private val store: MessageStore
 ) : OneBotListener {
 
     var bandSender: (String) -> Unit = {}
@@ -786,6 +1000,7 @@ class MessageBroker(
             return false
         }
         val type = obj.get("type")?.asString ?: return false
+        val seq = obj.get("seq")?.asInt ?: 0
         when (type) {
             "send_message" -> {
                 val messageType = obj.get("message_type")?.asString ?: "private"
@@ -794,16 +1009,37 @@ class MessageBroker(
                 oneBot.sendMessage(messageType, targetId, content)
                 return true
             }
+            "get_history" -> {
+                val targetId = obj.get("target_id")?.asString ?: return false
+                val limit = obj.get("limit")?.asInt ?: 20
+                bandSender(store.buildHistoryFrame(targetId, limit, seq))
+                return true
+            }
+            "get_conversations" -> {
+                bandSender(store.buildConversationFrame(seq))
+                return true
+            }
             else -> return false
         }
     }
 
     fun handleOneBotEvent(msg: OneBotMessage): String? {
+        store.addMessage(
+            msg.targetId,
+            StoredMessage(
+                messageType = msg.messageType,
+                senderId = msg.senderId,
+                senderName = msg.senderName,
+                content = msg.content,
+                time = msg.time
+            )
+        )
         return parser.toHandBandFrame(msg)
     }
 
     override fun onEvent(message: OneBotMessage) {
-        bandSender(parser.toHandBandFrame(message))
+        val frame = handleOneBotEvent(message) ?: return
+        bandSender(frame)
     }
 
     override fun onState(connected: Boolean) {
@@ -830,7 +1066,7 @@ git commit -m "feat(android): 双向消息中枢 MessageBroker"
 
 ---
 
-### Task 6: 前台服务 SyncService
+### Task 7: 前台服务 SyncService
 
 **Files:**
 - Create: `android-sync/app/src/main/java/com/example/bandqq/sync/SyncService.kt`
@@ -899,7 +1135,7 @@ class SyncService : Service() {
         configManager = ConfigManager(this)
         parser = OneBotParser()
         oneBot = OneBotClient(parser)
-        broker = MessageBroker(parser, oneBot)
+        broker = MessageBroker(parser, oneBot, MessageStore())
         oneBot.startWithListener(broker)
         InterconnectBridge.register(broker)
     }
@@ -964,7 +1200,7 @@ git commit -m "feat(android): 前台服务 SyncService 与互联桥"
 
 ---
 
-### Task 7: MainActivity 配置界面
+### Task 8: MainActivity 配置界面
 
 **Files:**
 - Create: `android-sync/app/src/main/java/com/example/bandqq/MainActivity.kt`
@@ -1267,7 +1503,7 @@ git commit -m "feat(android): 配置界面 MainActivity"
 
 ---
 
-### Task 8: 说明文档与完整验证
+### Task 9: 说明文档与完整验证
 
 **Files:**
 - Create: `android-sync/README.md`

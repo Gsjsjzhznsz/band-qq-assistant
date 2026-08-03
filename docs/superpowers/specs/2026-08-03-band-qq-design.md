@@ -54,7 +54,7 @@ band-qq/
 │   ├── common/
 │   │   ├── api.js           # interconnect 封装
 │   │   ├── protocol.js      # 协议编解码 + seq 管理
-│   │   ├── store.js         # 会话/消息本地持久化
+│   │   ├── store.js         # 会话/消息内存态缓存（不持久化）
 │   │   └── style.css
 │   ├── pages/
 │   │   ├── index/index.ux   # 会话列表
@@ -67,7 +67,8 @@ band-qq/
 │   │   ├── sync/
 │   │   │   ├── SyncService.kt     # 前台服务（互联 + 保活）
 │   │   │   ├── InterconnectBridge.kt
-│   │   │   └── MessageBroker.kt   # 双向转发/协议映射
+│   │   │   ├── MessageBroker.kt   # 双向转发/协议映射
+│   │   │   └── MessageStore.kt    # 消息/会话本地存储（手机端数据中枢）
 │   │   ├── onebot/
 │   │   │   ├── OneBotClient.kt    # WS + HTTP API
 │   │   │   └── OneBotParser.kt    # 事件→手环协议
@@ -92,7 +93,11 @@ band-qq/
 | 手环→同步器 | `send_message` | 发送消息请求 |
 | 手环→同步器 | `get_conversations` | 请求会话列表 |
 | 同步器→手环 | `conversation_list` | 会话列表响应 |
+| 手环→同步器 | `get_history` | 请求某会话最近历史消息 |
+| 同步器→手环 | `history_list` | 历史消息列表响应 |
 | 同步器→手环 | `connect_state` | 连接状态（connected/disconnected） |
+
+> **数据归属**：手机同步器是**主数据源**，负责完整消息存储（本地持久化）并向手环推送最近记录、响应历史拉取。手环端为**瘦客户端**：以内存态缓存为主，可本地缓存**少量**最近数据（会话 ≤10、每会话消息 ≤30）作为断连兜底，不承担完整存储。
 
 ### push_message（同步器 → 手环）
 
@@ -139,6 +144,25 @@ band-qq/
 { "type": "connect_state", "seq": 0, "state": "connected" }
 ```
 
+### get_history（手环 → 同步器，请求某会话历史）
+
+```json
+{ "type": "get_history", "seq": 4, "target_id": "123456789", "limit": 50 }
+```
+
+### history_list（同步器 → 手环，响应 get_history）
+
+```json
+{
+  "type": "history_list",
+  "seq": 4,
+  "target_id": "123456789",
+  "list": [
+    { "message_type": "group", "sender_id": "10001", "sender_name": "张三", "content": "你好", "time": 1700000000 }
+  ]
+}
+```
+
 ### 字段约定
 
 - `message_type`: `"private"` | `"group"`；`target_id`/`sender_id` 一律字符串（避免 JS 大整数精度问题）。
@@ -159,13 +183,14 @@ band-qq/
 
 - `api.js` — `interconnect.instance()` 封装：`send()`、`connectStatus()`、`onmessage` 分发；连接事件更新全局状态。
 - `protocol.js` — 消息构造器 + seq 自增；`pushMessage`/`sendMessage`/`getConversations` 等；非文本降级。
-- `store.js` — `system.storage` 持久化会话与消息；限制 50 个会话、每会话 100 条消息（防止手环卡顿）。
+- `store.js` — **内存态缓存 + 少量本地兜底**：内存保存会话列表与当前会话消息；用 `system.storage` 缓存**最近少量数据**（会话 ≤10、每会话 ≤30 条），用于断连后展示最近记录。数据主体来自同步器推送/拉取，本地仅作小量缓存。
 
 ### 数据流
 
-1. 收到 `push_message` → `store.js` 更新会话与消息 → 若在聊天页且为同一会话则刷新气泡。
+1. 收到 `push_message` → `store.js` 更新内存态会话与消息 → 若在聊天页且为同一会话则刷新气泡。
 2. 点击快捷回复 → `protocol.sendMessage()` → `api.send()` → 同步器 → NapCat → QQ。
 3. 首页 `onShow` → 请求 `get_conversations` 拉取列表。
+4. 进入聊天页 `onShow` → 请求 `get_history` 拉取该会话最近记录（手机端存储）。
 
 ### manifest 关键配置
 
@@ -206,6 +231,14 @@ band-qq/
    - 手环 → QQ：收到 `send_message` → `OneBotClient.sendMessage()` → NapCat。
    - QQ → 手环：收到 OneBot 事件 → 转手环协议 → `InterconnectBridge` 发回。
    - 非文本消息段降级为文字标签。
+   - **存储职责**：收到 OneBot 事件时，将消息写入本地存储（`MessageStore`）。
+   - **历史推送**：收到手环 `get_history` → 从 `MessageStore` 读取最近 N 条 → 回 `history_list`；收到 `get_conversations` → 从 `MessageStore` 聚合会话 → 回 `conversation_list`。
+
+2.5 **消息存储（`MessageStore`）**
+   - 本地持久化会话与消息（Room/SQLite 或简单 JSON 文件）。
+   - 写入：`onMessage` 事件落库；发送成功回执落库。
+   - 查询：`getHistory(targetId, limit)`、`getConversations()`。
+   - 限制：每会话保留最近 200 条、会话 100 个，防存储膨胀。
 
 3. **OneBot 客户端（`OneBotClient` + `OneBotParser`）**
    - OkHttp + WebSocket 连接正向 WS（`ws://127.0.0.1:3001`），指数退避自动重连。

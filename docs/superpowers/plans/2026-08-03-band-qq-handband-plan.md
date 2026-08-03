@@ -179,7 +179,7 @@ git commit -m "feat(band): 工程骨架与 manifest 配置"
 ```js
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, degradeContent, decodePush } from '../common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush } from '../common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {
@@ -198,6 +198,13 @@ describe('protocol', () => {
   it('构造 get_conversations 帧', () => {
     const msg = getConversations()
     assert.equal(msg.type, 'get_conversations')
+  })
+
+  it('构造 get_history 帧', () => {
+    const msg = getHistory('123', 30)
+    assert.equal(msg.type, 'get_history')
+    assert.equal(msg.target_id, '123')
+    assert.equal(msg.limit, 30)
   })
 
   it('降级非文本段', () => {
@@ -246,6 +253,15 @@ export function getConversations() {
   return { type: 'get_conversations', seq: nextSeq() }
 }
 
+export function getHistory(targetId, limit) {
+  return {
+    type: 'get_history',
+    seq: nextSeq(),
+    target_id: targetId,
+    limit: limit || 50
+  }
+}
+
 export function degradeContent(raw) {
   if (typeof raw === 'string') return raw
   if (!Array.isArray(raw)) return ''
@@ -289,7 +305,7 @@ git commit -m "feat(band): 协议编解码 protocol.js"
 
 ---
 
-### Task 3: store.js 会话与消息持久化
+### Task 3: store.js 会话与消息缓存（内存 + 少量本地兜底）
 
 **Files:**
 - Create: `band-qq/common/store.js`
@@ -298,13 +314,18 @@ git commit -m "feat(band): 协议编解码 protocol.js"
 **Interfaces:**
 - Consumes: `protocol.degradeContent`。
 - Produces:
-  - `init(): Promise` — 从 storage 载入数据。
+  - `init(): Promise` — 从 storage 载入少量兜底缓存。
+  - `setConversations(list): Promise` — 覆盖会话列表（来自同步器推送），并落少量缓存。
   - `getConversations(): Promise<Array>` — 返回会话数组。
-  - `getMessages(targetId): Promise<Array>` — 返回某会话消息。
-  - `upsertMessage(msg): Promise` — 写入消息并更新会话（50 会话/100 消息截断）。
+  - `getMessages(targetId): Promise<Array>` — 返回某会话消息（内存）。
+  - `setMessages(targetId, list): Promise` — 覆盖某会话消息（来自 get_history 响应），并落少量缓存。
+  - `upsertMessage(msg): Promise` — 写入消息并更新会话（内存 + 缓存）。
   - `getQuickReplies(): Promise<Array>` — 快捷回复词。
   - `addQuickReply(text): Promise` — 新增快捷回复词。
   - `removeQuickReply(index): Promise` — 删除快捷回复词。
+  - `getDefaultQuickReplies(): Array` — 内置默认快捷词（首次进入聊天页时播种）。
+
+> **数据归属**：手机同步器为主存储；手环端内存态为主，另用 `system.storage` 兜底缓存**少量**数据（会话 ≤10、每会话 ≤30 条），断连后可展示最近记录，不承担完整存储。
 
 - [ ] **Step 1: 写失败测试（注入 mock storage）**
 
@@ -318,8 +339,7 @@ function mockStorage(initial) {
   const map = new Map(Object.entries(initial))
   return {
     get: (o) => { o.success(map.get(o.key) ?? '') },
-    set: (o) => { map.set(o.key, o.value); o.success({}) },
-    clear: (o) => { map.clear(); o.success({}) }
+    set: (o) => { map.set(o.key, o.value); o.success({}) }
   }
 }
 
@@ -332,6 +352,7 @@ beforeEach(async () => {
 describe('store', () => {
   it('初始化空列表', async () => {
     assert.deepEqual(await store.getConversations(), [])
+    assert.deepEqual(await store.getMessages('100'), [])
   })
 
   it('写入消息后更新会话', async () => {
@@ -346,12 +367,41 @@ describe('store', () => {
     assert.equal(msgs[0].sender_name, 'A')
   })
 
+  it('setMessages 覆盖历史', async () => {
+    const list = [{ message_type: 'group', sender_id: '2', sender_name: 'B', content: '旧', time: 1700000000 }]
+    await store.setMessages('200', list)
+    assert.equal((await store.getMessages('200')).length, 1)
+    await store.setMessages('200', [])
+    assert.deepEqual(await store.getMessages('200'), [])
+  })
+
+  it('setConversations 覆盖列表', async () => {
+    const convs = [{ id: '300', type: 'group', name: '群', last_msg: 'x', time: 1700000000 }]
+    await store.setConversations(convs)
+    assert.equal((await store.getConversations()).length, 1)
+  })
+
+  it('兜底缓存重载', async () => {
+    const storage = mockStorage({})
+    const s1 = createStore(storage)
+    await s1.init()
+    await s1.setConversations([{ id: '9', type: 'group', name: '群', last_msg: 'x', time: 1 }])
+    const s2 = createStore(storage)
+    await s2.init()
+    assert.equal((await s2.getConversations()).length, 1)
+    assert.equal((await s2.getConversations())[0].id, '9')
+  })
+
   it('快捷回复增删', async () => {
     await store.addQuickReply('好的')
     await store.addQuickReply('收到')
     assert.deepEqual(await store.getQuickReplies(), ['好的', '收到'])
     await store.removeQuickReply(0)
     assert.deepEqual(await store.getQuickReplies(), ['收到'])
+  })
+
+  it('默认快捷词非空', () => {
+    assert.ok(store.getDefaultQuickReplies().length > 0)
   })
 })
 ```
@@ -361,64 +411,90 @@ describe('store', () => {
 运行：`node --test band-qq/test/store.test.js`
 预期：FAIL，`Cannot find module '../common/store.js'`。
 
-- [ ] **Step 3: 实现 store.js**
+- [ ] **Step 3: 实现 store.js（内存为主 + storage 少量兜底）**
 
 ```js
-import storage from '@system.storage'
-import { degradeContent } from './protocol'
+import { degradeContent } from './protocol.js'
 
-const CONV_KEY = 'conv_list'
-const MSG_PREFIX = 'msg_'
-const QUICK_KEY = 'quick_replies'
 const MAX_CONVERSATIONS = 50
 const MAX_MESSAGES = 100
+const CACHE_CONVERSATIONS = 10
+const CACHE_MESSAGES = 30
+const CONV_KEY = 'conv_cache'
+const MSG_PREFIX = 'msg_cache_'
+const QUICK_KEY = 'quick_replies'
 
-function promisifyGet(key, def) {
-  return new Promise((resolve) => {
-    storage.get({ key: key, default: def, success: (v) => resolve(v), fail: () => resolve(def) })
-  })
+function createStorageAdapter(storageImpl) {
+  const st = storageImpl || null
+  return {
+    get(key, def) {
+      return new Promise((resolve) => {
+        if (st) { st.get({ key: key, default: def, success: (v) => resolve(v), fail: () => resolve(def) }); return }
+        resolveSystemStorage().then((sys) => {
+          sys.get({ key: key, default: def, success: (v) => resolve(v), fail: () => resolve(def) })
+        }).catch(() => resolve(def))
+      })
+    },
+    set(key, value) {
+      return new Promise((resolve) => {
+        if (st) { st.set({ key: key, value: value, success: () => resolve(), fail: () => resolve() }); return }
+        resolveSystemStorage().then((sys) => {
+          sys.set({ key: key, value: value, success: () => resolve(), fail: () => resolve() })
+        }).catch(() => resolve())
+      })
+    }
+  }
 }
 
-function promisifySet(key, value) {
-  return new Promise((resolve) => {
-    storage.set({ key: key, value: value, success: () => resolve(), fail: () => resolve() })
-  })
+let systemStoragePromise = null
+function resolveSystemStorage() {
+  if (!systemStoragePromise) {
+    systemStoragePromise = import('@system.storage').then((m) => m.default).catch(() => null)
+  }
+  return systemStoragePromise
 }
 
 export function createStore(storageImpl) {
-  const st = storageImpl || storage
+  const cache = createStorageAdapter(storageImpl)
   let conversations = []
-  let quickReplies = ['好的', '收到', '稍等', '马上到']
-
-  function pGet(key, def) {
-    return new Promise((resolve) => {
-      st.get({ key: key, default: def, success: (v) => resolve(v), fail: () => resolve(def) })
-    })
-  }
-  function pSet(key, value) {
-    return new Promise((resolve) => {
-      st.set({ key: key, value: value, success: () => resolve(), fail: () => resolve() })
-    })
-  }
+  let quickReplies = []
+  const messagesByTarget = {}
 
   return {
     async init() {
-      const convRaw = await pGet(CONV_KEY, '[]')
-      const quickRaw = await pGet(QUICK_KEY, '')
+      const convRaw = await cache.get(CONV_KEY, '[]')
       try { conversations = JSON.parse(convRaw) } catch (e) { conversations = [] }
-      if (quickRaw) { try { quickReplies = JSON.parse(quickRaw) } catch (e) {} }
+      const quickRaw = await cache.get(QUICK_KEY, '[]')
+      try { quickReplies = JSON.parse(quickRaw) } catch (e) { quickReplies = [] }
+    },
+    async setConversations(list) {
+      conversations = Array.isArray(list) ? list : []
+      const slice = conversations.slice(0, CACHE_CONVERSATIONS)
+      await cache.set(CONV_KEY, JSON.stringify(slice))
     },
     async getConversations() {
       return conversations
     },
     async getMessages(targetId) {
-      const raw = await pGet(MSG_PREFIX + targetId, '[]')
-      try { return JSON.parse(raw) } catch (e) { return [] }
+      const msgs = messagesByTarget[targetId]
+      if (msgs) return msgs
+      const raw = await cache.get(MSG_PREFIX + targetId, '[]')
+      try {
+        messagesByTarget[targetId] = JSON.parse(raw)
+      } catch (e) {
+        messagesByTarget[targetId] = []
+      }
+      return messagesByTarget[targetId]
+    },
+    async setMessages(targetId, list) {
+      const sliced = Array.isArray(list) ? list.slice(0, MAX_MESSAGES) : []
+      messagesByTarget[targetId] = sliced
+      await cache.set(MSG_PREFIX + targetId, JSON.stringify(sliced.slice(0, CACHE_MESSAGES)))
     },
     async upsertMessage(msg) {
       const content = typeof msg.content === 'string' ? msg.content : degradeContent(msg.content)
       const key = msg.target_id
-      const messages = await this.getMessages(key)
+      const messages = messagesByTarget[key] || []
       messages.push({
         message_type: msg.message_type,
         sender_id: msg.sender_id,
@@ -427,7 +503,8 @@ export function createStore(storageImpl) {
         time: msg.time || Date.now()
       })
       while (messages.length > MAX_MESSAGES) messages.shift()
-      await pSet(MSG_PREFIX + key, JSON.stringify(messages))
+      messagesByTarget[key] = messages
+      await cache.set(MSG_PREFIX + key, JSON.stringify(messages.slice(0, CACHE_MESSAGES)))
 
       const idx = conversations.findIndex((c) => c.id === key)
       const conv = {
@@ -440,7 +517,10 @@ export function createStore(storageImpl) {
       if (idx >= 0) conversations.splice(idx, 1)
       conversations.unshift(conv)
       while (conversations.length > MAX_CONVERSATIONS) conversations.pop()
-      await pSet(CONV_KEY, JSON.stringify(conversations))
+      await cache.set(CONV_KEY, JSON.stringify(conversations.slice(0, CACHE_CONVERSATIONS)))
+    },
+    getDefaultQuickReplies() {
+      return ['好的', '收到', '稍等', '马上到', '嗯嗯', '哈哈哈']
     },
     async getQuickReplies() {
       return quickReplies
@@ -448,12 +528,12 @@ export function createStore(storageImpl) {
     async addQuickReply(text) {
       if (!text) return
       quickReplies.push(text)
-      await pSet(QUICK_KEY, JSON.stringify(quickReplies))
+      await cache.set(QUICK_KEY, JSON.stringify(quickReplies))
     },
     async removeQuickReply(index) {
       if (index < 0 || index >= quickReplies.length) return
       quickReplies.splice(index, 1)
-      await pSet(QUICK_KEY, JSON.stringify(quickReplies))
+      await cache.set(QUICK_KEY, JSON.stringify(quickReplies))
     }
   }
 }
@@ -461,6 +541,8 @@ export function createStore(storageImpl) {
 const store = createStore()
 export default store
 ```
+
+> 说明：`createStore(storageImpl)` 注入 mock storage 供 Node 测试；未注入时（真机默认导出）通过惰性动态 `import('@system.storage')` 解析系统模块，Node 测试仅用工厂注入路径，不触发裸模块解析。
 
 - [ ] **Step 4: 运行测试验证通过**
 
@@ -794,11 +876,17 @@ git commit -m "feat(band): 会话列表页 index"
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
       this.name = (params && params.name) || '聊天'
+      this.requestHistory()
       this.loadMessages()
       this.loadQuickReplies()
     },
     onShow() {
       this.loadMessages()
+    },
+    requestHistory() {
+      const protocol = this.$app.$def.protocol
+      const api = this.$app.$def.api
+      api.send(protocol.getHistory(this.targetId, 50))
     },
     async loadMessages() {
       const store = this.$app.$def.store
@@ -806,7 +894,13 @@ git commit -m "feat(band): 会话列表页 index"
     },
     async loadQuickReplies() {
       const store = this.$app.$def.store
-      this.quickReplies = await store.getQuickReplies()
+      let replies = await store.getQuickReplies()
+      if (!replies.length) {
+        replies = store.getDefaultQuickReplies()
+        this.quickReplies = replies
+      } else {
+        this.quickReplies = replies
+      }
       this.quickGroups = this.chunk(this.quickReplies, 2)
     },
     chunk(arr, size) {
