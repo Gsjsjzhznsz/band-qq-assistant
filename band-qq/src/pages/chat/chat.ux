@@ -1,12 +1,24 @@
 <template>
   <div class="page">
-    <text class="title">{{name}}</text>
+    <div class="title-bar">
+      <image class="title-icon" src="../../common/ui/back.png" onclick="goBack"></image>
+      <text class="title">{{name}}</text>
+    </div>
     <scroll class="msg-area" scroll-y="true">
       <div class="msg-item {{msg.sender_id === myId ? 'self' : 'other'}}" for="{{messages}}">
         <text class="bubble {{msg.sender_id === myId ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
       </div>
     </scroll>
-    <div class="quick-area">
+    <div class="input-bar">
+      <image class="kb-icon" src="../../common/ui/kb_show.png" onclick="toggleInput"></image>
+      <text class="input-hint" if="{{!inputOpen}}" onclick="toggleInput">点击输入消息</text>
+      <div class="input-open" if="{{inputOpen}}">
+        <input class="chat-input" type="text" value="{{draft}}" oninput="onInput" onchange="onInput"/>
+        <image class="send-icon" src="../../common/ui/send.png" onclick="sendDraft"></image>
+        <image class="kb-icon" src="../../common/ui/kb_hide.png" onclick="toggleInput"></image>
+      </div>
+    </div>
+    <div class="quick-area" if="{{inputOpen}}">
       <scroll class="quick-scroll" scroll-y="true">
         <div class="quick-row" for="{{quickReplies}}">
           <text class="quick-word" onclick="sendQuick($item)">{{$item}}</text>
@@ -18,7 +30,9 @@
 
 <style>
   .page { flex-direction: column; background-color: #000000; }
-  .title { height: 36px; line-height: 36px; font-size: 20px; color: #ffffff; padding-left: 12px; }
+  .title-bar { width: 192px; height: 36px; flex-direction: row; align-items: center; }
+  .title-icon { width: 36px; height: 36px; padding: 8px; object-fit: contain; }
+  .title { flex: 1; font-size: 20px; color: #ffffff; text-align: center; }
   .msg-area { width: 192px; flex: 1; }
   .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
   .self { justify-content: flex-end; }
@@ -26,10 +40,16 @@
   .bubble { max-width: 150px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
-  .quick-area { height: 88px; }
-  .quick-scroll { width: 192px; height: 88px; }
-  .quick-row { width: 192px; height: 44px; flex-direction: row; }
-  .quick-word { width: 92px; height: 40px; margin: 2px; text-align: center; line-height: 40px; font-size: 16px; color: #07c160; background-color: #101010; border-radius: 8px; }
+  .input-bar { width: 192px; height: 48px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .kb-icon { width: 40px; height: 40px; object-fit: contain; }
+  .input-hint { flex: 1; font-size: 18px; color: #666666; }
+  .input-open { flex: 1; flex-direction: row; align-items: center; }
+  .chat-input { flex: 1; height: 40px; background-color: #1f1f1f; color: #ffffff; font-size: 18px; border-radius: 8px; padding: 0 8px; }
+  .send-icon { width: 40px; height: 40px; margin-left: 4px; object-fit: contain; }
+  .quick-area { width: 192px; height: 128px; border-top: 1px solid #222222; }
+  .quick-scroll { width: 192px; height: 128px; }
+  .quick-row { width: 192px; height: 64px; flex-direction: row; align-items: center; }
+  .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 18px; color: #07c160; background-color: #101010; border-radius: 8px; }
 </style>
 
 <script>
@@ -41,8 +61,9 @@
       name: '',
       messages: [],
       quickReplies: [],
-      quickGroups: [],
-      myId: 'me'
+      myId: 'me',
+      inputOpen: false,
+      draft: ''
     },
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
@@ -62,6 +83,21 @@
     onShow() {
       this.loadMessages()
     },
+    goBack() {
+      router.back()
+    },
+    toggleInput() {
+      this.inputOpen = !this.inputOpen
+    },
+    onInput(e) {
+      this.draft = e.value
+    },
+    async sendDraft() {
+      const content = this.draft.trim()
+      if (!content) return
+      this.draft = ''
+      await this.sendMessage(content)
+    },
     requestHistory() {
       const protocol = this.$app.$def.protocol
       const api = this.$app.$def.api
@@ -75,14 +111,11 @@
       const store = this.$app.$def.store
       const replies = await store.getQuickReplies()
       this.quickReplies = replies.length ? replies : store.getDefaultQuickReplies()
-      this.quickGroups = this.chunk(this.quickReplies, 2)
-    },
-    chunk(arr, size) {
-      const out = []
-      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
-      return out
     },
     async sendQuick(content) {
+      await this.sendMessage(content)
+    },
+    async sendMessage(content) {
       const protocol = this.$app.$def.protocol
       const api = this.$app.$def.api
       const messageType = await this.conversationType()
