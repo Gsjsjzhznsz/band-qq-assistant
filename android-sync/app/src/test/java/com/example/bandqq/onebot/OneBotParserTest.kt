@@ -1,0 +1,64 @@
+package com.example.bandqq.onebot
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class OneBotParserTest {
+
+    private val parser = OneBotParser()
+
+    @Test
+    fun `解析群消息事件`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"张三"},"message":[{"type":"text","data":{"text":"你好"}}],
+             "time":1700000000,"self_id":1,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("group", msg?.messageType)
+        assertEquals("123", msg?.targetId)
+        assertEquals("456", msg?.senderId)
+        assertEquals("张三", msg?.senderName)
+        assertEquals("你好", msg?.content)
+        assertEquals(1700000000L, msg?.time)
+    }
+
+    @Test
+    fun `解析私聊消息事件`() {
+        val json = """
+            {"post_type":"message","message_type":"private","user_id":"789",
+             "sender":{"nickname":"李四"},"message":[{"type":"text","data":{"text":"在吗"}}],
+             "time":1700000001,"self_id":1,"message_id":3}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("private", msg?.messageType)
+        assertEquals("789", msg?.targetId)
+    }
+
+    @Test
+    fun `非文本段降级`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"张三"},
+             "message":[{"type":"text","data":{"text":"图:"}},
+                        {"type":"image","data":{"file":"a.png"}},
+                        {"type":"text","data":{"text":"。"}}],
+             "time":1700000000,"self_id":1,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("图:[图片]。", msg?.content)
+    }
+
+    @Test
+    fun `非消息事件返回 null`() {
+        val json = """{"post_type":"meta_event","meta_event_type":"heartbeat"}"""
+        assertNull(parser.parseMessageEvent(json))
+    }
+
+    @Test
+    fun `构建发送请求体`() {
+        val body = parser.buildSendRequest("group", "123", "收到")
+        assertEquals("""{"action":"send_group_msg","params":{"group_id":123,"message":"收到"}}""", body)
+    }
+}
