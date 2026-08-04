@@ -135,4 +135,37 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
             }
         })
     }
+
+    /**
+     * 调用 OneBot HTTP 通用接口（如 get_friend_list/get_group_list）。
+     * 路径优先 {httpUrl}/api/{action}，失败时回退 {httpUrl}/{action}。
+     * 成功回传原始响应体，失败回传 null。
+     */
+    fun requestApi(action: String, baseUrl: String = config.httpUrl, callback: (String?) -> Unit) {
+        fun doRequest(url: String, onFail: () -> Unit) {
+            val request = Request.Builder()
+                .url(url)
+                .post("{}".toRequestBody("application/json".toMediaType()))
+                .apply { if (config.token.isNotBlank()) header("Authorization", "Bearer ${config.token}") }
+                .build()
+            client.newCall(request).enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                    onFail()
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: Response) {
+                    response.use {
+                        val body = it.body?.string() ?: ""
+                        if (it.isSuccessful) callback(body) else onFail()
+                    }
+                }
+            })
+        }
+        val root = baseUrl.trimEnd('/')
+        doRequest("$root/api/$action") {
+            doRequest("$root/$action") {
+                callback(null)
+            }
+        }
+    }
 }

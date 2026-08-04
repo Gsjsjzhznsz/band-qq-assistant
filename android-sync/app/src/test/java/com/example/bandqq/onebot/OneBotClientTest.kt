@@ -41,4 +41,20 @@ class OneBotClientTest {
         assertTrue(request.body.readUtf8().contains("send_group_msg"))
         assertTrue(ok)
     }
+
+    @Test
+    fun `requestApi 请求 get_friend_list 并回传响应`() = runBlocking {
+        val url = server.url("/").toString()
+        server.enqueue(MockResponse().setBody("""{"status":"ok","data":[{"user_id":10001,"nickname":"小明"}]}"""))
+        val client = OneBotClient(parser)
+        val latch = CountDownLatch(1)
+        var resp: String? = null
+        client.requestApi("get_friend_list", url) { resp = it; latch.countDown() }
+        latch.await(3, TimeUnit.SECONDS)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertTrue(request.path!!.contains("get_friend_list"))
+        assertTrue(resp != null)
+        assertTrue(resp!!.contains("小明"))
+    }
 }
