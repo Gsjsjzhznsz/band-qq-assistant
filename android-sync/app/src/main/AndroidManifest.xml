@@ -20,6 +20,14 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ChatHistoryActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ContactManagerActivity"
+            android:exported="false" />
+
         <service
             android:name=".sync.SyncService"
             android:exported="false"

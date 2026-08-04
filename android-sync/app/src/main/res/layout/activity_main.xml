@@ -83,11 +83,76 @@
             android:paddingTop="8dp" />
 
         <Button
+            android:id="@+id/checkBandBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="检查手环连接"
+            android:paddingTop="8dp" />
+
+        <Button
             android:id="@+id/stopBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="停止同步"
             android:paddingTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="快捷回复词管理"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="24dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/quickInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="新快捷词" />
+
+            <Button
+                android:id="@+id/addQuickBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="添加" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/quickView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="(暂无快捷词)"
+            android:textSize="14sp"
+            android:paddingTop="8dp" />
+
+        <Button
+            android:id="@+id/chatHistoryBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="查看聊天记录"
+            android:paddingTop="8dp" />
+
+        <Button
+            android:id="@+id/contactManagerBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="管理手环联系人"
+            android:paddingTop="8dp" />
+
+        <Button
+            android:id="@+id/clearHistoryBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="清空全部聊天记录"
+            android:backgroundTint="#D32F2F"
+            android:textColor="#FFFFFF"
+            android:paddingTop="12dp" />
 
         <TextView
             android:id="@+id/logView"

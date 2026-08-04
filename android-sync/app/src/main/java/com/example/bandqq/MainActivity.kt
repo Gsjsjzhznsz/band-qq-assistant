@@ -15,8 +15,11 @@ import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.databinding.ActivityMainBinding
 import com.example.bandqq.onebot.NapCatDetector
+import com.example.bandqq.sync.BandStateBus
+import com.example.bandqq.sync.InterconnectBridge
 import com.example.bandqq.sync.SyncService
 import com.example.bandqq.sync.SyncState
+import com.example.bandqq.sync.StoreHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configManager: ConfigManager
     private val scope = CoroutineScope(Dispatchers.Main)
 
+    private val stateListener: (Boolean) -> Unit = { _ -> refreshStatus() }
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { }
@@ -40,9 +45,16 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         configManager = ConfigManager(this)
 
+        BandStateBus.add(stateListener)
         requestPermissions()
         loadConfig()
         bindButtons()
+        refreshQuicks()
+    }
+
+    override fun onDestroy() {
+        BandStateBus.remove(stateListener)
+        super.onDestroy()
     }
 
     private fun requestPermissions() {
@@ -92,6 +104,87 @@ class MainActivity : AppCompatActivity() {
             toast("同步服务已停止")
             refreshStatus()
         }
+
+        binding.checkBandBtn.setOnClickListener {
+            checkBand()
+        }
+
+        binding.chatHistoryBtn.setOnClickListener {
+            startActivity(Intent(this, ChatHistoryActivity::class.java))
+        }
+
+        binding.contactManagerBtn.setOnClickListener {
+            startActivity(Intent(this, ContactManagerActivity::class.java))
+        }
+
+        binding.addQuickBtn.setOnClickListener {
+            val text = binding.quickInput.text.toString().trim()
+            if (text.isEmpty()) {
+                toast("请输入快捷词")
+                return@setOnClickListener
+            }
+            if (StoreHolder.store == null) {
+                toast("同步服务尚未启动，请先启动同步")
+                return@setOnClickListener
+            }
+            StoreHolder.store!!.addQuickReply(text)
+            binding.quickInput.setText("")
+            pushQuickToBand(StoreHolder.store!!)
+            toast("快捷词已添加")
+            refreshQuicks()
+        }
+
+        binding.clearHistoryBtn.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("清空全部聊天记录")
+                .setMessage("确定要清空手机端保存的全部聊天记录吗？\n（将同步清空手环端缓存）")
+                .setPositiveButton("清空") { _, _ ->
+                    StoreHolder.store?.clearAllHistory()
+                    InterconnectBridge.sendToBand("""{"type":"clear_all_history","seq":0}""")
+                    toast("聊天记录已清空")
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+    }
+
+    private fun refreshQuicks() {
+        val store = StoreHolder.store
+        if (store == null) {
+            binding.quickView.text = "(同步服务未启动，暂无快捷词)"
+            return
+        }
+        val quicks = store.getQuickReplies()
+        binding.quickView.text = if (quicks.isEmpty()) "(暂无快捷词，长按删除暂无)" else quicks.joinToString("  ")
+        binding.quickView.setOnLongClickListener {
+            if (quicks.isEmpty()) {
+                toast("暂无快捷词可删除")
+                true
+            } else {
+                showQuickDeleteDialog(quicks)
+                true
+            }
+        }
+    }
+
+    /** 长按快捷词列表：弹出删除选择 */
+    private fun showQuickDeleteDialog(quicks: List<String>) {
+        AlertDialog.Builder(this)
+            .setTitle("删除快捷回复词")
+            .setItems(quicks.toTypedArray()) { _, which ->
+                val store = StoreHolder.store ?: return@setItems
+                store.removeQuickReply(which)
+                pushQuickToBand(store)
+                refreshQuicks()
+                toast("已删除")
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 将手机端当前快捷词列表同步到手环 */
+    private fun pushQuickToBand(store: com.example.bandqq.sync.MessageStore) {
+        InterconnectBridge.sendToBand(store.buildQuickFrame(0))
     }
 
     private fun probeNapCat() {
@@ -135,8 +228,21 @@ class MainActivity : AppCompatActivity() {
         binding.statusText.text = when {
             SyncState.oneBotConnected && SyncState.bandConnected -> "状态：互联已连接，NapCat 在线"
             SyncState.oneBotConnected -> "状态：NapCat 在线，等待手环连接"
+            SyncState.bandConnected -> "状态：手环已连接，等待 NapCat"
             else -> "状态：未连接（请启动同步服务）"
         }
+    }
+
+    /** 检查手环互联：主动触发 SDK 连接（若已连接会触发授权/拉起手环应用） */
+    private fun checkBand() {
+        binding.statusText.text = "状态：正在检查手环连接..."
+        if (SyncState.bandConnected) {
+            toast("手环已连接")
+            refreshStatus()
+            return
+        }
+        InterconnectBridge.connect()
+        toast("已发起手环连接检查，请留意运动健康的授权提示")
     }
 
     private fun toast(msg: String) {
@@ -146,5 +252,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshStatus()
+        refreshQuicks()
     }
 }
