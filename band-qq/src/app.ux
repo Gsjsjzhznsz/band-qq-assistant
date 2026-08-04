@@ -34,10 +34,6 @@ function handleMessage(msg) {
       if (Array.isArray(msg.list)) store.setConversations(msg.list)
       emit('conversations', msg.list)
       break
-    case 'quick_reply_list':
-      if (Array.isArray(msg.list)) store.setQuickReplies(msg.list)
-      emit('quicks', msg.list)
-      break
     case 'history_list':
       if (Array.isArray(msg.list) && msg.target_id) {
         store.setMessages(msg.target_id, msg.list)

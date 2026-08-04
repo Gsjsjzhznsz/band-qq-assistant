@@ -59,46 +59,6 @@ class MessageBrokerTest {
     }
 
     @Test
-    fun `get_quick_replies 返回快捷词列表帧`() {
-        val store = MessageStore()
-        store.addQuickReply("好的")
-        store.addQuickReply("收到")
-        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
-        val out = mutableListOf<String>()
-        broker.bandSender = { out.add(it) }
-        val handled = broker.onBandFrame("""{"type":"get_quick_replies","seq":9}""")
-        assertTrue(handled)
-        assertTrue(out[0].contains("\"type\":\"quick_reply_list\""))
-        assertTrue(out[0].contains("好的"))
-        assertTrue(out[0].contains("收到"))
-    }
-
-    @Test
-    fun `add_quick_reply 持久化并回包`() {
-        val store = MessageStore()
-        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
-        val out = mutableListOf<String>()
-        broker.bandSender = { out.add(it) }
-        val handled = broker.onBandFrame("""{"type":"add_quick_reply","seq":9,"content":"稍等"}""")
-        assertTrue(handled)
-        assertTrue(store.getQuickReplies().contains("稍等"))
-        assertTrue(out[0].contains("稍等"))
-    }
-
-    @Test
-    fun `remove_quick_reply 删除并回包`() {
-        val store = MessageStore()
-        store.addQuickReply("好的")
-        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
-        val out = mutableListOf<String>()
-        broker.bandSender = { out.add(it) }
-        val handled = broker.onBandFrame("""{"type":"remove_quick_reply","seq":9,"index":0}""")
-        assertTrue(handled)
-        assertTrue(store.getQuickReplies().isEmpty())
-        assertTrue(out[0].contains("\"type\":\"quick_reply_list\""))
-    }
-
-    @Test
     fun `自己群消息帧带 is_self`() {
         val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
         val frame = broker.handleOneBotEvent(

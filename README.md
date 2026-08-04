@@ -28,7 +28,7 @@
 1. **NapCat**：安装 NapCat APK（见 `docs/napcat-apk.md`），扫码登录 QQ，WebUI 配置 OneBot WS 端口 3001。
 2. **同步器**：Android Studio 打开 `android-sync/`，改 applicationId/签名与你手环一致，安装到手机。
 3. **手环端**：AIoT-IDE 打开 `band-qq/`，按 `docs/signing.md` 配签名打包 rpk，安装到手环。
-4. **联调**：手机开同步器 → 手环打开应用 → 另一 QQ 号发消息 → 手环收到 → 手环发快捷回复 → 对方收到。
+4. **联调**：手机开同步器 → 手环打开应用 → 另一 QQ 号发消息 → 手环收到 → 手环输入回复 → 对方收到。
 
 ## 设计文档
 

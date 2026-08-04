@@ -24,7 +24,7 @@ object SyncState {
     @Volatile var bandConnected: Boolean = false
 }
 
-/** 全局可访问的数据仓（手机端为主存储：快捷词持久化），供服务与界面共享 */
+/** 全局可访问的数据仓（手机端为主存储），供服务与界面共享 */
 object StoreHolder {
     @Volatile var store: MessageStore? = null
         private set

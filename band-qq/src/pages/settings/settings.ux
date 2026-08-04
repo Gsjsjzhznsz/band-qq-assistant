@@ -15,18 +15,6 @@
         <text class="row-label">NapCat</text>
         <text class="row-value">{{napcatText}}</text>
       </div>
-      <text class="section">快捷回复词（点击文字可删除）</text>
-      <div class="card quick-empty-card" if="{{quickReplies.length === 0}}">
-        <text class="quick-empty">（暂无快捷词，请点下方新增）</text>
-      </div>
-      <div class="quick-item card" for="{{(idx, item) in quickReplies}}">
-        <text class="quick-text" onclick="removeQuick($idx)">{{$item}}</text>
-        <text class="quick-del" onclick="removeQuick($idx)">删</text>
-      </div>
-      <div class="add-bar">
-        <text class="add-hint" onclick="openAdd">点此添加</text>
-        <text class="btn-add" onclick="openAdd">添加</text>
-      </div>
       <div class="card row">
         <text class="row-label">清空全部聊天记录</text>
         <text class="row-value danger" onclick="askClear">清空</text>
@@ -59,14 +47,6 @@
   .row-value.danger { color: #ff5a5a; }
   .section { font-size: 16px; color: rgba(255, 255, 255, 0.6); padding: 8px 12px; }
   .body { height: 384px; width: 192px; flex-direction: column; }
-  .quick-empty-card { margin: 4px 8px; padding: 12px; align-items: center; justify-content: center; }
-  .quick-item { height: 48px; flex-direction: row; align-items: center; margin: 4px 8px; padding: 0 12px; }
-  .quick-text { flex: 1; font-size: 20px; color: #ffffff; }
-  .quick-del { font-size: 18px; color: #ff5a5a; }
-  .add-bar { height: 72px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
-  .add-hint { flex: 1; font-size: 22px; color: #ffffff; }
-  .btn-add { margin-left: 8px; padding: 12px 20px; background-color: #07c160; color: #ffffff; font-size: 20px; border-radius: 16px; }
-  .quick-empty { flex: 1; font-size: 16px; color: rgba(255, 255, 255, 0.4); text-align: center; }
   .mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.65); align-items: center; justify-content: center; }
   .confirm-box { width: 336px; background-color: #2b2b2b; border-radius: 20px; padding: 24px; flex-direction: column; }
   .confirm-title { font-size: 24px; color: #ff5a5a; font-weight: bold; text-align: center; margin-bottom: 12px; }
@@ -83,24 +63,10 @@
     private: {
       statusText: '未连接',
       napcatText: '未知',
-      quickReplies: [],
       confirmShow: false
     },
     onShow() {
       this.refreshStatus()
-      this.loadQuick()
-      this.$app.$def.on('quicks', this.onQuickReceived)
-      this.$app.$def.on('cleared', this.onCleared)
-    },
-    onHide() {
-      this.$app.$def.off('quicks', this.onQuickReceived)
-      this.$app.$def.off('cleared', this.onCleared)
-    },
-    onQuickReceived(list) {
-      this.quickReplies = Array.isArray(list) ? list : this.quickReplies
-    },
-    onCleared() {
-      this.loadQuick()
     },
     goBack() {
       router.back()
@@ -113,40 +79,6 @@
       } catch (e) {
         this.statusText = '未连接'
       }
-    },
-    async loadQuick() {
-      const store = this.$app.$def.store
-      this.quickReplies = await store.getQuickReplies()
-      this.syncQuickFromPhone()
-    },
-    async syncQuickFromPhone() {
-      const api = this.$app.$def.api
-      const protocol = this.$app.$def.protocol
-      try {
-        await api.send(protocol.getQuickReplies())
-      } catch (e) {
-        console.error('pull quicks failed', e)
-      }
-    },
-    openAdd() {
-      router.push({
-        uri: '/compose',
-        params: { mode: 'quick' }
-      })
-    },
-    async removeQuick(idx) {
-      const api = this.$app.$def.api
-      const protocol = this.$app.$def.protocol
-      try {
-        await api.send(protocol.removeQuickReply(idx))
-      } catch (e) {
-        console.error('remove quick failed', e)
-      }
-      const store = this.$app.$def.store
-      const replies = await store.getQuickReplies()
-      replies.splice(idx, 1)
-      await store.setQuickReplies(replies)
-      this.loadQuick()
     },
     askClear() {
       this.confirmShow = true
@@ -165,7 +97,6 @@
       }
       const store = this.$app.$def.store
       await store.clearAllMessages()
-      this.quickReplies = await store.getQuickReplies()
     }
   }
 </script>

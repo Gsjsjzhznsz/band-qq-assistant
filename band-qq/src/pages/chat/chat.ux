@@ -14,13 +14,6 @@
         </div>
       </div>
     </scroll>
-    <div class="quick-area">
-      <scroll class="quick-scroll" scroll-y="true">
-        <div class="quick-row" for="{{quickReplies}}">
-          <text class="quick-word" onclick="sendQuick($item)">{{$item}}</text>
-        </div>
-      </scroll>
-    </div>
     <div class="input-bar" onclick="openCompose">
       <text class="input-preview">点击输入消息</text>
       <image class="btn" src="../../common/ui/kb_show.png"></image>
@@ -45,10 +38,6 @@
   .bubble { max-width: 140px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
-  .quick-area { height: 128px; border-top: 1px solid #222222; }
-  .quick-scroll { height: 128px; }
-  .quick-row { height: 64px; flex-direction: row; align-items: center; }
-  .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 20px; color: #07c160; background-color: #101010; border-radius: 8px; }
   .input-bar { height: 84px; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 8px; border-top: 1px solid #222222; }
   .input-preview { flex: 1; font-size: 20px; color: #666666; }
 </style>
@@ -60,8 +49,7 @@
     protected: {
       targetId: '',
       name: '',
-      messages: [],
-      quickReplies: []
+      messages: []
     },
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
@@ -70,16 +58,13 @@
       this.$app.$def.on('history', (msg) => {
         if (msg.target_id === this.targetId) this.loadMessages()
       })
-      this.$app.$def.on('quicks', () => this.loadQuickReplies())
       this.$app.$def.on('cleared', () => this.loadMessages())
       this.requestHistory()
       this.loadMessages()
-      this.loadQuickReplies()
     },
     onDestroy() {
       this.$app.$def.off('message')
       this.$app.$def.off('history')
-      this.$app.$def.off('quicks')
       this.$app.$def.off('cleared')
     },
     onShow() {
@@ -102,32 +87,6 @@
     async loadMessages() {
       const store = this.$app.$def.store
       this.messages = await store.getMessages(this.targetId)
-    },
-    async loadQuickReplies() {
-      const store = this.$app.$def.store
-      const replies = await store.getQuickReplies()
-      this.quickReplies = replies.length ? replies : store.getDefaultQuickReplies()
-    },
-    async sendQuick(content) {
-      await this.sendMessage(content)
-    },
-    async sendMessage(content) {
-      const protocol = this.$app.$def.protocol
-      const api = this.$app.$def.api
-      const messageType = await this.conversationType()
-      const msg = protocol.sendMessage(messageType, this.targetId, content)
-      try {
-        await api.send(msg)
-        this.loadMessages()
-      } catch (e) {
-        console.error('send failed', e)
-      }
-    },
-    async conversationType() {
-      const store = this.$app.$def.store
-      const convs = await store.getConversations()
-      const c = convs.find((x) => x.id === this.targetId)
-      return c ? c.type : 'private'
     }
   }
 </script>

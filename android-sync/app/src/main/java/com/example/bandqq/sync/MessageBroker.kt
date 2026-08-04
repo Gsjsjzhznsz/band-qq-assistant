@@ -49,22 +49,6 @@ class MessageBroker(
                 bandSender(store.buildConversationFrame(seq))
                 return true
             }
-            "get_quick_replies" -> {
-                bandSender(store.buildQuickFrame(seq))
-                return true
-            }
-            "add_quick_reply" -> {
-                val content = obj.get("content")?.asString ?: return false
-                store.addQuickReply(content)
-                bandSender(store.buildQuickFrame(seq))
-                return true
-            }
-            "remove_quick_reply" -> {
-                val index = obj.get("index")?.asInt ?: return false
-                store.removeQuickReply(index)
-                bandSender(store.buildQuickFrame(seq))
-                return true
-            }
             "clear_all_history" -> {
                 store.clearAllHistory()
                 return true

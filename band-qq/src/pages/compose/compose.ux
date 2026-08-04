@@ -3,7 +3,7 @@
   <div class="page">
     <div class="top-bar">
       <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
-      <text class="done-btn" onclick="confirmDraft">{{mode === 'quick' ? '保存' : '完成'}}</text>
+      <text class="done-btn" onclick="confirmDraft">完成</text>
     </div>
     <div class="preview-box">
       <scroll class="preview-scroll" scroll-y="true">
@@ -22,7 +22,7 @@
 
     <div class="mask" show="{{confirmShow}}">
       <div class="confirm-box">
-        <text class="confirm-title">{{mode === 'quick' ? '确认添加快捷词' : '确认发送'}}</text>
+        <text class="confirm-title">确认发送</text>
         <scroll class="confirm-desc-scroll" scroll-y="true">
           <text class="confirm-desc">{{draft}}</text>
         </scroll>
@@ -60,7 +60,6 @@
     protected: {
       targetId: '',
       name: '',
-      mode: 'message',
       draft: ''
     },
     private: {
@@ -69,7 +68,6 @@
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
       this.name = (params && params.name) || '聊天'
-      this.mode = (params && params.mode) || 'message'
     },
     goBack() {
       router.back()
@@ -92,23 +90,6 @@
       if (!content) return
       this.confirmShow = false
       this.draft = ''
-      if (this.mode === 'quick') {
-        const api = this.$app.$def.api
-        const protocol = this.$app.$def.protocol
-        try {
-          await api.send(protocol.addQuickReply(content))
-        } catch (e) {
-          console.error('add quick failed', e)
-        }
-        const store = this.$app.$def.store
-        const replies = await store.getQuickReplies()
-        if (!replies.includes(content)) {
-          replies.push(content)
-          await store.setQuickReplies(replies)
-        }
-        router.back()
-        return
-      }
       await this.sendMessage(content)
     },
     async sendMessage(content) {

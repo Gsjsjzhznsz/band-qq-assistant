@@ -49,7 +49,6 @@ class MainActivity : AppCompatActivity() {
         requestPermissions()
         loadConfig()
         bindButtons()
-        refreshQuicks()
     }
 
     override fun onDestroy() {
@@ -117,23 +116,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactManagerActivity::class.java))
         }
 
-        binding.addQuickBtn.setOnClickListener {
-            val text = binding.quickInput.text.toString().trim()
-            if (text.isEmpty()) {
-                toast("请输入快捷词")
-                return@setOnClickListener
-            }
-            if (StoreHolder.store == null) {
-                toast("同步服务尚未启动，请先启动同步")
-                return@setOnClickListener
-            }
-            StoreHolder.store!!.addQuickReply(text)
-            binding.quickInput.setText("")
-            pushQuickToBand(StoreHolder.store!!)
-            toast("快捷词已添加")
-            refreshQuicks()
-        }
-
         binding.clearHistoryBtn.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("清空全部聊天记录")
@@ -146,45 +128,6 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("取消", null)
                 .show()
         }
-    }
-
-    private fun refreshQuicks() {
-        val store = StoreHolder.store
-        if (store == null) {
-            binding.quickView.text = "(同步服务未启动，暂无快捷词)"
-            return
-        }
-        val quicks = store.getQuickReplies()
-        binding.quickView.text = if (quicks.isEmpty()) "(暂无快捷词，长按删除暂无)" else quicks.joinToString("  ")
-        binding.quickView.setOnLongClickListener {
-            if (quicks.isEmpty()) {
-                toast("暂无快捷词可删除")
-                true
-            } else {
-                showQuickDeleteDialog(quicks)
-                true
-            }
-        }
-    }
-
-    /** 长按快捷词列表：弹出删除选择 */
-    private fun showQuickDeleteDialog(quicks: List<String>) {
-        AlertDialog.Builder(this)
-            .setTitle("删除快捷回复词")
-            .setItems(quicks.toTypedArray()) { _, which ->
-                val store = StoreHolder.store ?: return@setItems
-                store.removeQuickReply(which)
-                pushQuickToBand(store)
-                refreshQuicks()
-                toast("已删除")
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    /** 将手机端当前快捷词列表同步到手环 */
-    private fun pushQuickToBand(store: com.example.bandqq.sync.MessageStore) {
-        InterconnectBridge.sendToBand(store.buildQuickFrame(0))
     }
 
     private fun probeNapCat() {
@@ -252,6 +195,5 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshStatus()
-        refreshQuicks()
     }
 }

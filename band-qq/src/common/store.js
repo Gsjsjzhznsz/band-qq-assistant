@@ -6,7 +6,6 @@ const CACHE_CONVERSATIONS = 10
 const CACHE_MESSAGES = 30
 const CONV_KEY = 'conv_cache'
 const MSG_PREFIX = 'msg_cache_'
-const QUICK_KEY = 'quick_replies'
 const VISIBLE_KEY = 'visible_contacts'
 
 function createStorageAdapter(storageImpl) {
@@ -46,7 +45,6 @@ function resolveSystemStorage() {
 export function createStore(storageImpl) {
   const cache = createStorageAdapter(storageImpl)
   let conversations = []
-  let quickReplies = []
   let visibleContacts = []
   const messagesByTarget = {}
 
@@ -54,8 +52,6 @@ export function createStore(storageImpl) {
     async init() {
       const convRaw = await cache.get(CONV_KEY, '[]')
       try { conversations = JSON.parse(convRaw) } catch (e) { conversations = [] }
-      const quickRaw = await cache.get(QUICK_KEY, '[]')
-      try { quickReplies = JSON.parse(quickRaw) } catch (e) { quickReplies = [] }
       const visibleRaw = await cache.get(VISIBLE_KEY, '[]')
       try { visibleContacts = JSON.parse(visibleRaw) } catch (e) { visibleContacts = [] }
     },
@@ -139,26 +135,6 @@ export function createStore(storageImpl) {
     },
     isVisible(id) {
       return visibleContacts.some((c) => c.id === id)
-    },
-    getDefaultQuickReplies() {
-      return ['好的', '收到', '稍等', '马上到', '嗯嗯', '哈哈哈']
-    },
-    async getQuickReplies() {
-      return quickReplies
-    },
-    async setQuickReplies(list) {
-      quickReplies = Array.isArray(list) ? list : []
-      await cache.set(QUICK_KEY, JSON.stringify(quickReplies))
-    },
-    async addQuickReply(text) {
-      if (!text) return
-      quickReplies.push(text)
-      await cache.set(QUICK_KEY, JSON.stringify(quickReplies))
-    },
-    async removeQuickReply(index) {
-      if (index < 0 || index >= quickReplies.length) return
-      quickReplies.splice(index, 1)
-      await cache.set(QUICK_KEY, JSON.stringify(quickReplies))
     },
     async clearAllMessages() {
       const keys = Object.keys(messagesByTarget)

@@ -59,18 +59,6 @@ describe('store', () => {
     assert.equal((await s2.getConversations())[0].id, '9')
   })
 
-  it('快捷回复增删', async () => {
-    await store.addQuickReply('好的')
-    await store.addQuickReply('收到')
-    assert.deepEqual(await store.getQuickReplies(), ['好的', '收到'])
-    await store.removeQuickReply(0)
-    assert.deepEqual(await store.getQuickReplies(), ['收到'])
-  })
-
-  it('默认快捷词非空', () => {
-    assert.ok(store.getDefaultQuickReplies().length > 0)
-  })
-
   it('clearAllMessages 清空消息与会话', async () => {
     const msg = { type: 'push_message', message_type: 'group', target_id: '100', sender_id: '1', sender_name: 'A', content: 'hi', time: 1700000000 }
     await store.upsertMessage(msg)

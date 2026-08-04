@@ -27,18 +27,6 @@ export function getHistory(targetId, limit) {
   return { type: 'get_history', seq: nextSeq(), target_id: targetId, limit: limit || 20 }
 }
 
-export function getQuickReplies() {
-  return { type: 'get_quick_replies', seq: nextSeq() }
-}
-
-export function addQuickReply(content) {
-  return { type: 'add_quick_reply', seq: nextSeq(), content: content }
-}
-
-export function removeQuickReply(index) {
-  return { type: 'remove_quick_reply', seq: nextSeq(), index: index }
-}
-
 export function clearAllHistory() {
   return { type: 'clear_all_history', seq: nextSeq() }
 }

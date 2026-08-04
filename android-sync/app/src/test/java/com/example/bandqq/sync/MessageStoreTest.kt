@@ -42,19 +42,6 @@ class MessageStoreTest {
     }
 
     @Test
-    fun `快捷词增删持久化`() {
-        val kv = InMemoryKv()
-        val s = MessageStore(kv)
-        s.addQuickReply("好的")
-        s.addQuickReply("收到")
-        assertEquals(listOf("好的", "收到"), s.getQuickReplies())
-        assertTrue(s.removeQuickReply(0))
-        assertEquals(listOf("收到"), s.getQuickReplies())
-        val reload = MessageStore(kv)
-        assertEquals(listOf("收到"), reload.getQuickReplies())
-    }
-
-    @Test
     fun `clearAllHistory 清空全部会话`() {
         store.addMessage("a", StoredMessage("group", "1", "A", "x", 100L))
         store.addMessage("b", StoredMessage("group", "2", "B", "y", 200L))

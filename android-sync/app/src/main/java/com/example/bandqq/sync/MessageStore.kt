@@ -42,8 +42,6 @@ class InMemoryKv : KvStorage {
 
 class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
-    private val QUICK_KEY = "quick_replies"
-    private val DEFAULT_QUICK = listOf("好的", "收到", "稍等", "马上到", "嗯嗯", "哈哈哈")
     private val MESSAGES_KEY = "chat_messages"
     private val CONVERSATIONS_KEY = "chat_conversations"
     private val VISIBLE_KEY = "visible_contacts"
@@ -52,31 +50,13 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
     private val MAX_MESSAGES = 200
     private val MAX_CONVERSATIONS = 100
 
-    /** 快捷词：以手机端为主存储，持久化 */
-    private var quickReplies: MutableList<String> = loadQuicks()
+    /** 联系人可见性：以手机端为主存储，持久化 */
     private var visibleContacts: MutableList<VisibleContact> = loadVisibleContacts()
     private val duplicates = HashSet<String>()
 
     init {
-        quickReplies = loadQuicks()
         visibleContacts = loadVisibleContacts()
         loadPersistedMessages()
-    }
-
-    private fun loadQuicks(): MutableList<String> {
-        val raw = storage.get(QUICK_KEY, "[]")
-        return try {
-            JsonParser.parseString(raw).asJsonArray
-                .map { it.asString }.toMutableList()
-        } catch (e: Exception) {
-            mutableListOf()
-        }
-    }
-
-    private fun persistQuicks() {
-        val arr = JsonArray()
-        for (q in quickReplies) arr.add(q)
-        storage.set(QUICK_KEY, arr.toString())
     }
 
     /** 从持久化存储恢复全部消息与会话索引 */
@@ -125,37 +105,6 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
             root.add(targetId, arr)
         }
         storage.set(MESSAGES_KEY, root.toString())
-    }
-
-    fun getQuickReplies(): List<String> = quickReplies
-
-    fun addQuickReply(text: String) {
-        val t = text.trim()
-        if (t.isEmpty()) return
-        quickReplies.add(t)
-        persistQuicks()
-    }
-
-    fun removeQuickReply(index: Int): Boolean {
-        if (index < 0 || index >= quickReplies.size) return false
-        quickReplies.removeAt(index)
-        persistQuicks()
-        return true
-    }
-
-    fun clearQuickReplies() {
-        quickReplies.clear()
-        persistQuicks()
-    }
-
-    fun buildQuickFrame(seq: Int): String {
-        val obj = JsonObject()
-        obj.addProperty("type", "quick_reply_list")
-        obj.addProperty("seq", seq)
-        val arr = JsonArray()
-        for (q in quickReplies) arr.add(q)
-        obj.add("list", arr)
-        return obj.toString()
     }
 
     fun addMessage(targetId: String, msg: StoredMessage) {
