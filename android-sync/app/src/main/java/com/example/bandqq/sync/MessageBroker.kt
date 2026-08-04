@@ -49,6 +49,30 @@ class MessageBroker(
                 bandSender(store.buildConversationFrame(seq))
                 return true
             }
+            "get_quick_replies" -> {
+                bandSender(store.buildQuickFrame(seq))
+                return true
+            }
+            "add_quick_reply" -> {
+                val content = obj.get("content")?.asString ?: return false
+                store.addQuickReply(content)
+                bandSender(store.buildQuickFrame(seq))
+                return true
+            }
+            "remove_quick_reply" -> {
+                val index = obj.get("index")?.asInt ?: return false
+                store.removeQuickReply(index)
+                bandSender(store.buildQuickFrame(seq))
+                return true
+            }
+            "clear_all_history" -> {
+                store.clearAllHistory()
+                return true
+            }
+            "get_visible_contacts" -> {
+                bandSender(store.buildVisibleContactsFrame(seq))
+                return true
+            }
             else -> return false
         }
     }
@@ -61,10 +85,12 @@ class MessageBroker(
                 senderId = msg.senderId,
                 senderName = msg.senderName,
                 content = msg.content,
-                time = msg.time
+                time = msg.time,
+                isSelf = msg.isSelf
             )
         )
-        return parser.toHandBandFrame(msg)
+        val visible = store.isVisibleContact(msg.targetId)
+        return parser.toHandBandFrame(msg, visible)
     }
 
     override fun onEvent(message: OneBotMessage) {
