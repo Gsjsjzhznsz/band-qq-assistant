@@ -70,4 +70,51 @@ describe('store', () => {
   it('默认快捷词非空', () => {
     assert.ok(store.getDefaultQuickReplies().length > 0)
   })
+
+  it('clearAllMessages 清空消息与会话', async () => {
+    const msg = { type: 'push_message', message_type: 'group', target_id: '100', sender_id: '1', sender_name: 'A', content: 'hi', time: 1700000000 }
+    await store.upsertMessage(msg)
+    assert.equal((await store.getConversations()).length, 1)
+    await store.clearAllMessages()
+    assert.deepEqual(await store.getConversations(), [])
+    assert.deepEqual(await store.getMessages('100'), [])
+  })
+
+  it('visibleContacts 持久化', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    assert.deepEqual(await store.getVisibleContacts(), [{ id: '100', type: 'private', name: '小明' }])
+  })
+
+  it('isVisible 判定', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    assert.equal(store.isVisible('100'), true)
+    assert.equal(store.isVisible('200'), false)
+  })
+
+  it('未添加联系人消息标记临时', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    const msg = { type: 'push_message', message_type: 'private', target_id: '200', sender_id: '200', sender_name: '张三', content: '你好', visible: false, time: 1700000000 }
+    await store.upsertMessage(msg)
+    const convs = await store.getConversations()
+    assert.equal(convs[0].is_temporary, true)
+  })
+
+  it('已添加联系人消息非临时', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    const msg = { type: 'push_message', message_type: 'private', target_id: '100', sender_id: '100', sender_name: '小明', content: '你好', visible: true, time: 1700000000 }
+    await store.upsertMessage(msg)
+    const convs = await store.getConversations()
+    assert.equal(convs[0].is_temporary, false)
+  })
+
+  it('setVisibleContacts 清除临时会话', async () => {
+    const tmp = { type: 'push_message', message_type: 'private', target_id: '200', sender_id: '200', sender_name: '张三', content: '你好', visible: false, time: 1700000000 }
+    await store.upsertMessage(tmp)
+    assert.equal((await store.getConversations()).length, 1)
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    const convs = await store.getConversations()
+    assert.equal(convs.some((c) => c.id === '200'), false)
+    assert.equal(convs.some((c) => c.id === '100' && c.is_temporary === false), true)
+    assert.deepEqual(await store.getMessages('200'), [])
+  })
 })
