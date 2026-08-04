@@ -34,6 +34,10 @@ function handleMessage(msg) {
       if (Array.isArray(msg.list)) store.setConversations(msg.list)
       emit('conversations', msg.list)
       break
+    case 'quick_reply_list':
+      if (Array.isArray(msg.list)) store.setQuickReplies(msg.list)
+      emit('quicks', msg.list)
+      break
     case 'history_list':
       if (Array.isArray(msg.list) && msg.target_id) {
         store.setMessages(msg.target_id, msg.list)
@@ -42,6 +46,13 @@ function handleMessage(msg) {
       break
     case 'connect_state':
       emit('state', msg)
+      break
+    case 'visible_contacts':
+      if (Array.isArray(msg.contacts)) store.setVisibleContacts(msg.contacts)
+      emit('visible_contacts', msg.contacts)
+      break
+    case 'clear_all_history':
+      store.clearAllMessages().then(() => emit('cleared'))
       break
     default:
       break
