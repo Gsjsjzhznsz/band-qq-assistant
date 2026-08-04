@@ -40,4 +40,94 @@ class MessageStoreTest {
         assertTrue(frame.contains("\"type\":\"conversation_list\""))
         assertTrue(frame.contains("\"id\":\"123\""))
     }
+
+    @Test
+    fun `快捷词增删持久化`() {
+        val kv = InMemoryKv()
+        val s = MessageStore(kv)
+        s.addQuickReply("好的")
+        s.addQuickReply("收到")
+        assertEquals(listOf("好的", "收到"), s.getQuickReplies())
+        assertTrue(s.removeQuickReply(0))
+        assertEquals(listOf("收到"), s.getQuickReplies())
+        val reload = MessageStore(kv)
+        assertEquals(listOf("收到"), reload.getQuickReplies())
+    }
+
+    @Test
+    fun `clearAllHistory 清空全部会话`() {
+        store.addMessage("a", StoredMessage("group", "1", "A", "x", 100L))
+        store.addMessage("b", StoredMessage("group", "2", "B", "y", 200L))
+        store.clearAllHistory()
+        assertTrue(store.getConversations().isEmpty())
+    }
+
+    @Test
+    fun `消息持久化重启后可恢复`() {
+        val kv = InMemoryKv()
+        val s1 = MessageStore(kv)
+        s1.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L, isSelf = false))
+        s1.addMessage("123", StoredMessage("private", "456", "李四", "收到", 1700000100L, isSelf = true))
+
+        // 模拟重启：用同一 KV 新建 Store
+        val s2 = MessageStore(kv)
+        val history = s2.getAllMessages("123")
+        assertEquals(2, history.size)
+        assertEquals("你好", history[0].content)
+        assertEquals("收到", history[1].content)
+        assertEquals(true, history[1].isSelf)
+
+        val convs = s2.getConversations()
+        assertEquals(1, convs.size)
+        assertEquals("123", convs[0].id)
+        assertEquals("李四", convs[0].name)
+    }
+
+    @Test
+    fun `清除单个会话持久化后不恢复`() {
+        val kv = InMemoryKv()
+        val s1 = MessageStore(kv)
+        s1.addMessage("a", StoredMessage("group", "1", "A", "x", 100L))
+        s1.addMessage("b", StoredMessage("group", "2", "B", "y", 200L))
+        s1.clearHistory("a")
+        val s2 = MessageStore(kv)
+        assertEquals(1, s2.getConversations().size)
+        assertTrue(s2.getAllMessages("a").isEmpty())
+    }
+
+    @Test
+    fun `visibleContacts 持久化往返`() {
+        val kv = InMemoryKv()
+        val s1 = MessageStore(kv)
+        s1.setVisibleContacts(listOf(VisibleContact("111", "private", "小明")))
+        val reload = MessageStore(kv)
+        assertEquals(listOf(VisibleContact("111", "private", "小明")), reload.getVisibleContacts())
+    }
+
+    @Test
+    fun `isVisibleContact 判定`() {
+        val store = MessageStore()
+        store.setVisibleContacts(listOf(VisibleContact("111", "private", "小明")))
+        assertTrue(store.isVisibleContact("111"))
+        assertTrue(!store.isVisibleContact("222"))
+    }
+
+    @Test
+    fun `visible_contacts 帧包含联系人列表`() {
+        val store = MessageStore()
+        store.setVisibleContacts(listOf(VisibleContact("111", "private", "小明"), VisibleContact("222", "group", "群A")))
+        val frame = store.buildVisibleContactsFrame(7)
+        assertTrue(frame.contains("\"type\":\"visible_contacts\""))
+        assertTrue(frame.contains("\"id\":\"111\""))
+        assertTrue(frame.contains("\"type\":\"group\""))
+        assertTrue(frame.contains("\"name\":\"群A\""))
+    }
+
+    @Test
+    fun `conversation_list 帧包含 type 字段`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val frame = store.buildConversationFrame(3)
+        assertTrue(frame.contains("\"type\":\"group\""))
+    }
 }
