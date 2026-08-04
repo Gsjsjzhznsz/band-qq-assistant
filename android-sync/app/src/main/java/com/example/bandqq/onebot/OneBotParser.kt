@@ -10,7 +10,8 @@ data class OneBotMessage(
     val senderId: String,
     val senderName: String,
     val content: String,
-    val time: Long
+    val time: Long,
+    val isSelf: Boolean = false
 )
 
 class OneBotParser {
@@ -31,13 +32,15 @@ class OneBotParser {
             else -> return null
         } ?: return null
         val content = degradeContent(obj.get("message"))
+        val selfId = obj.get("self_id")?.let { if (it.isJsonPrimitive) it.asString else it.toString() }
         return OneBotMessage(
             messageType = messageType,
             targetId = targetId,
             senderId = senderId,
             senderName = sender?.get("nickname")?.asString ?: senderId,
             content = content,
-            time = obj.get("time")?.asLong ?: 0L
+            time = obj.get("time")?.asLong ?: 0L,
+            isSelf = selfId != null && senderId == selfId
         )
     }
 
@@ -64,7 +67,7 @@ class OneBotParser {
         return sb.toString()
     }
 
-    fun toHandBandFrame(msg: OneBotMessage): String {
+    fun toHandBandFrame(msg: OneBotMessage, visible: Boolean = true): String {
         val obj = JsonObject()
         obj.addProperty("type", "push_message")
         obj.addProperty("seq", 0)
@@ -74,6 +77,8 @@ class OneBotParser {
         obj.addProperty("sender_name", msg.senderName)
         obj.addProperty("content", msg.content)
         obj.addProperty("time", msg.time)
+        obj.addProperty("is_self", msg.isSelf)
+        obj.addProperty("visible", visible)
         return obj.toString()
     }
 
