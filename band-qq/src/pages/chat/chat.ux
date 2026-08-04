@@ -1,7 +1,5 @@
-<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
 <template>
   <div class="page">
-    <div class="kb-mask" if="{{!keyboardVisible}}" onclick="closeInput"></div>
     <div class="top-row">
       <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
     </div>
@@ -9,50 +7,41 @@
       <text class="page-title">{{name}}</text>
     </div>
     <scroll class="msg-area" scroll-y="true">
-      <div class="msg-item {{msg.sender_id === myId ? 'self' : 'other'}}" for="{{messages}}">
-        <text class="bubble {{msg.sender_id === myId ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
+      <div class="msg-item {{msg.is_self ? 'self' : 'other'}}" for="{{messages}}">
+        <div class="msg-col {{msg.is_self ? 'col-self' : 'col-other'}}">
+          <text class="msg-name" if="{{msg.message_type === 'group'}}">{{msg.is_self ? '我' : msg.sender_name}}</text>
+          <text class="bubble {{msg.is_self ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
+        </div>
       </div>
     </scroll>
-    <div class="quick-area" if="{{inputOpen && !keyboardVisible}}">
+    <div class="quick-area">
       <scroll class="quick-scroll" scroll-y="true">
         <div class="quick-row" for="{{quickReplies}}">
           <text class="quick-word" onclick="sendQuick($item)">{{$item}}</text>
         </div>
       </scroll>
     </div>
-    <div class="input-bar">
-      <text class="input-preview" if="{{!inputOpen}}">{{draft || '点击输入消息'}}</text>
-      <div class="input-btns">
-        <image class="btn" src="../../common/ui/kb_show.png" onclick="openInput"></image>
-        <image class="btn" if="{{inputOpen && draft}}" src="../../common/ui/send.png" onclick="sendDraft"></image>
-        <image class="btn" if="{{inputOpen && !keyboardVisible}}" src="../../common/ui/kb_hide.png" onclick="closeInput"></image>
-      </div>
+    <div class="input-bar" onclick="openCompose">
+      <text class="input-preview">点击输入消息</text>
+      <image class="btn" src="../../common/ui/kb_show.png"></image>
     </div>
-    <input-method
-      hide="{{keyboardVisible}}"
-      keyboardtype="QWERTY"
-      maxlength="5"
-      vibratemode="short"
-      screentype="pill-shaped"
-      @complete="onComplete"
-      @delete="onDelete"
-      @key-down="onKeyDown"
-      @visibility-change="onVisibilityChange"
-    ></input-method>
   </div>
 </template>
 
 <style>
   .page { flex-direction: column; background-color: #000000; }
-  .kb-mask { position: absolute; left: 0px; top: 0px; width: 192px; height: 180px; }
   .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
   .title-bar { height: 40px; align-items: center; justify-content: center; }
   .page-title { font-size: 24px; color: #ffffff; }
-  .msg-area { height: 200px; }
+  .msg-area { height: 160px; }
   .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
+  .msg-col { flex-direction: column; }
+  .col-self { align-items: flex-end; }
+  .col-other { align-items: flex-start; }
+  .msg-name { font-size: 14px; color: rgba(255, 255, 255, 0.55); margin-bottom: 2px; }
   .bubble { max-width: 140px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
@@ -60,9 +49,8 @@
   .quick-scroll { height: 128px; }
   .quick-row { height: 64px; flex-direction: row; align-items: center; }
   .quick-word { flex: 1; height: 56px; margin: 2px 6px; text-align: center; line-height: 56px; font-size: 20px; color: #07c160; background-color: #101010; border-radius: 8px; }
-  .input-bar { height: 84px; flex-direction: row; align-items: center; padding: 0 8px; border-top: 1px solid #222222; }
+  .input-bar { height: 84px; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 8px; border-top: 1px solid #222222; }
   .input-preview { flex: 1; font-size: 20px; color: #666666; }
-  .input-btns { flex-direction: row; align-items: center; justify-content: flex-end; }
 </style>
 
 <script>
@@ -73,11 +61,7 @@
       targetId: '',
       name: '',
       messages: [],
-      quickReplies: [],
-      myId: 'me',
-      inputOpen: false,
-      keyboardVisible: true,
-      draft: ''
+      quickReplies: []
     },
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
@@ -86,6 +70,8 @@
       this.$app.$def.on('history', (msg) => {
         if (msg.target_id === this.targetId) this.loadMessages()
       })
+      this.$app.$def.on('quicks', () => this.loadQuickReplies())
+      this.$app.$def.on('cleared', () => this.loadMessages())
       this.requestHistory()
       this.loadMessages()
       this.loadQuickReplies()
@@ -93,6 +79,8 @@
     onDestroy() {
       this.$app.$def.off('message')
       this.$app.$def.off('history')
+      this.$app.$def.off('quicks')
+      this.$app.$def.off('cleared')
     },
     onShow() {
       this.loadMessages()
@@ -100,33 +88,11 @@
     goBack() {
       router.back()
     },
-    openInput() {
-      this.inputOpen = true
-      this.keyboardVisible = false
-    },
-    closeInput() {
-      this.keyboardVisible = true
-      this.inputOpen = false
-    },
-    onComplete(e) {
-      this.draft += (e.detail && e.detail.content) || ''
-    },
-    onDelete() {
-      this.draft = this.draft.slice(0, -1)
-    },
-    onKeyDown(e) {
-      if (e.detail && e.detail.content) {
-        this.draft += e.detail.content
-      }
-    },
-    onVisibilityChange(e) {
-      this.keyboardVisible = e.detail && e.detail.visible
-    },
-    async sendDraft() {
-      const content = this.draft.trim()
-      if (!content) return
-      this.draft = ''
-      await this.sendMessage(content)
+    openCompose() {
+      router.push({
+        uri: '/compose',
+        params: { targetId: this.targetId, name: this.name }
+      })
     },
     requestHistory() {
       const protocol = this.$app.$def.protocol
@@ -152,16 +118,6 @@
       const msg = protocol.sendMessage(messageType, this.targetId, content)
       try {
         await api.send(msg)
-        const store = this.$app.$def.store
-        await store.upsertMessage({
-          type: 'push_message',
-          message_type: msg.message_type,
-          target_id: msg.target_id,
-          sender_id: 'me',
-          sender_name: '我',
-          content: content,
-          time: Date.now()
-        })
         this.loadMessages()
       } catch (e) {
         console.error('send failed', e)

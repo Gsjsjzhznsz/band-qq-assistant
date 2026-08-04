@@ -21,7 +21,8 @@
     "pages": {
       "pages/index": { "component": "index", "path": "/index" },
       "pages/chat": { "component": "chat", "path": "/chat" },
-      "pages/settings": { "component": "settings", "path": "/settings" }
+      "pages/settings": { "component": "settings", "path": "/settings" },
+      "pages/compose": { "component": "compose", "path": "/compose" }
     }
   }
 }

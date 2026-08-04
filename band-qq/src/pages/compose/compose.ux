@@ -1,0 +1,133 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
+<template>
+  <div class="page">
+    <div class="top-bar">
+      <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
+      <text class="done-btn" onclick="confirmDraft">{{mode === 'quick' ? '保存' : '完成'}}</text>
+    </div>
+    <div class="preview-box">
+      <scroll class="preview-scroll" scroll-y="true">
+        <text class="preview-text">{{draft || '在这里输入内容，点击下方键盘按键'}}</text>
+      </scroll>
+    </div>
+    <input-method
+      hide="{{false}}"
+      keyboardtype="QWERTY"
+      maxlength="5"
+      vibratemode="short"
+      screentype="pill-shaped"
+      @complete="onComplete"
+      @delete="onDelete"
+    ></input-method>
+
+    <div class="mask" show="{{confirmShow}}">
+      <div class="confirm-box">
+        <text class="confirm-title">{{mode === 'quick' ? '确认添加快捷词' : '确认发送'}}</text>
+        <scroll class="confirm-desc-scroll" scroll-y="true">
+          <text class="confirm-desc">{{draft}}</text>
+        </scroll>
+        <div class="confirm-btns">
+          <text class="confirm-cancel" onclick="cancelConfirm">取消</text>
+          <text class="confirm-ok" onclick="doConfirm">确认</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+  .page { flex-direction: column; background-color: #000000; }
+  .top-bar { height: 78px; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 8px; }
+  .btn { width: 48px; height: 34px; }
+  .done-btn { width: 112px; height: 48px; text-align: center; line-height: 48px; font-size: 22px; color: #ffffff; background-color: #07c160; border-radius: 24px; }
+  .preview-box { height: 112px; padding: 8px 10px; align-items: flex-start; justify-content: flex-start; }
+  .preview-scroll { width: 176px; height: 96px; }
+  .preview-text { font-size: 24px; color: #0d84ff; line-height: 34px; text-align: left; word-break: break-all; }
+  .mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.65); align-items: center; justify-content: center; }
+  .confirm-box { width: 336px; background-color: #2b2b2b; border-radius: 20px; padding: 24px; flex-direction: column; }
+  .confirm-title { font-size: 24px; color: #ffffff; font-weight: bold; text-align: center; margin-bottom: 12px; }
+  .confirm-desc-scroll { width: 288px; height: 120px; }
+  .confirm-desc { font-size: 24px; color: #0d84ff; line-height: 34px; text-align: left; word-break: break-all; }
+  .confirm-btns { flex-direction: row; justify-content: space-between; margin-top: 16px; }
+  .confirm-cancel { flex: 1; text-align: center; padding: 12px 0; font-size: 20px; color: #999999; background-color: #3a3a3a; border-radius: 16px; margin-right: 12px; }
+  .confirm-ok { flex: 1; text-align: center; padding: 12px 0; font-size: 20px; color: #ffffff; background-color: #07c160; border-radius: 16px; }
+</style>
+
+<script>
+  import router from '@system.router'
+
+  export default {
+    protected: {
+      targetId: '',
+      name: '',
+      mode: 'message',
+      draft: ''
+    },
+    private: {
+      confirmShow: false
+    },
+    onInit(params) {
+      this.targetId = (params && params.targetId) || ''
+      this.name = (params && params.name) || '聊天'
+      this.mode = (params && params.mode) || 'message'
+    },
+    goBack() {
+      router.back()
+    },
+    onComplete(e) {
+      this.draft += (e.detail && e.detail.content) || ''
+    },
+    onDelete() {
+      this.draft = this.draft.slice(0, -1)
+    },
+    confirmDraft() {
+      if (!this.draft.trim()) return
+      this.confirmShow = true
+    },
+    cancelConfirm() {
+      this.confirmShow = false
+    },
+    async doConfirm() {
+      const content = this.draft.trim()
+      if (!content) return
+      this.confirmShow = false
+      this.draft = ''
+      if (this.mode === 'quick') {
+        const api = this.$app.$def.api
+        const protocol = this.$app.$def.protocol
+        try {
+          await api.send(protocol.addQuickReply(content))
+        } catch (e) {
+          console.error('add quick failed', e)
+        }
+        const store = this.$app.$def.store
+        const replies = await store.getQuickReplies()
+        if (!replies.includes(content)) {
+          replies.push(content)
+          await store.setQuickReplies(replies)
+        }
+        router.back()
+        return
+      }
+      await this.sendMessage(content)
+    },
+    async sendMessage(content) {
+      const protocol = this.$app.$def.protocol
+      const api = this.$app.$def.api
+      const messageType = await this.conversationType()
+      const msg = protocol.sendMessage(messageType, this.targetId, content)
+      try {
+        await api.send(msg)
+        router.back()
+      } catch (e) {
+        console.error('send failed', e)
+      }
+    },
+    async conversationType() {
+      const store = this.$app.$def.store
+      const convs = await store.getConversations()
+      const c = convs.find((x) => x.id === this.targetId)
+      return c ? c.type : 'private'
+    }
+  }
+</script>

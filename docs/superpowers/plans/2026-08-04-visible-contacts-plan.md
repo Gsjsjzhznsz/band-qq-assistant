@@ -852,7 +852,6 @@ async setVisibleContacts(list) {
       conversations.push({ id: c.id, type: c.type, name: c.name, last_msg: '', time: 0, is_temporary: false })
     }
   }
-  const tmpIds = Array.isArray(list) ? [] : []
   const msgKeys = Object.keys(messagesByTarget)
   msgKeys.forEach((k) => {
     if (!visibleIds.has(k)) {
@@ -871,12 +870,11 @@ isVisible(id) {
 },
 ```
 
-**关于 setVisibleContacts 清除逻辑：** 简化版本——visibleContacts 更新后：
+**关于 setVisibleContacts 清除逻辑：** visibleContacts 更新后：
 1. 移除所有 `is_temporary` 会话；
 2. 移除不在新列表中的会话（联系人被取消勾选）；
 3. 为新列表中尚无会话的联系人补空会话条目；
 4. 清掉不在可见列表中的目标的消息缓存。
-（删除不必要的 `tmpIds` 变量）
 
 - [ ] **Step 4: 运行测试确认通过**
 

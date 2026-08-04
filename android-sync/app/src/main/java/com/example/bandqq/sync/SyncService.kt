@@ -24,6 +24,38 @@ object SyncState {
     @Volatile var bandConnected: Boolean = false
 }
 
+/** 全局可访问的数据仓（手机端为主存储：快捷词持久化），供服务与界面共享 */
+object StoreHolder {
+    @Volatile var store: MessageStore? = null
+        private set
+
+    fun setStore(s: MessageStore) {
+        store = s
+    }
+}
+
+/** 手环连接状态变化回调，供界面刷新 */
+object BandStateBus {
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(Boolean) -> Unit>()
+
+    fun add(listener: (Boolean) -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun remove(listener: (Boolean) -> Unit) {
+        listeners.remove(listener)
+    }
+
+    fun notify(connected: Boolean) {
+        for (l in listeners) {
+            try {
+                l(connected)
+            } catch (_: Exception) {
+            }
+        }
+    }
+}
+
 class SyncService : Service() {
 
     companion object {
@@ -53,9 +85,12 @@ class SyncService : Service() {
         configManager = ConfigManager(this)
         parser = OneBotParser()
         oneBot = OneBotClient(parser)
-        broker = MessageBroker(parser, oneBot, MessageStore())
+        val store = MessageStore(SyncPreferencesKv(this))
+        StoreHolder.setStore(store)
+        broker = MessageBroker(parser, oneBot, store)
         oneBot.startWithListener(broker)
         InterconnectBridge.register(broker)
+        InterconnectBridge.init(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -70,6 +105,7 @@ class SyncService : Service() {
                 scope.launch {
                     val config = configManager.load()
                     oneBot.start(config, broker)
+                    InterconnectBridge.connect()
                 }
             }
         }

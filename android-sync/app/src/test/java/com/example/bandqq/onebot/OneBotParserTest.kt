@@ -57,6 +57,28 @@ class OneBotParserTest {
     }
 
     @Test
+    fun `自己发的群消息标记 isSelf`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"我自己"},"message":[{"type":"text","data":{"text":"测试"}}],
+             "time":1700000000,"self_id":456,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals(true, msg?.isSelf)
+    }
+
+    @Test
+    fun `他人群消息 isSelf 为 false`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"张三"},"message":[{"type":"text","data":{"text":"你好"}}],
+             "time":1700000000,"self_id":999,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals(false, msg?.isSelf)
+    }
+
+    @Test
     fun `构建发送请求体`() {
         val body = parser.buildSendRequest("group", "123", "收到")
         assertEquals("""{"action":"send_group_msg","params":{"group_id":123,"message":"收到"}}""", body)
