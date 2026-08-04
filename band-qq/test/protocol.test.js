@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush } from '../src/common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush, getVisibleContacts } from '../src/common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {
@@ -41,5 +41,22 @@ describe('protocol', () => {
 
   it('push_message 缺字段返回 null', () => {
     assert.equal(decodePush({ type: 'push_message' }), null)
+  })
+
+  it('构造 get_visible_contacts 帧', () => {
+    const msg = getVisibleContacts()
+    assert.equal(msg.type, 'get_visible_contacts')
+  })
+
+  it('decodePush 透传 visible', () => {
+    const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '张三', content: '你好', time: 1700000000, visible: false }
+    const msg = decodePush(raw)
+    assert.equal(msg.visible, false)
+  })
+
+  it('decodePush 默认 visible 为 true', () => {
+    const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '张三', content: '你好', time: 1700000000 }
+    const msg = decodePush(raw)
+    assert.equal(msg.visible, true)
   })
 })
