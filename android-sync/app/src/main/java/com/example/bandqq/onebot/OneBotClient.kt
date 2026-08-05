@@ -117,8 +117,10 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
     ) {
         val baseUrl = httpUrlOverride ?: config.httpUrl
         val body = parser.buildSendRequest(messageType, targetId, content)
+        // SnowLuma 从路径解析 action：发到与 body action 一致的路径（如 /send_group_msg）
+        val action = parser.actionName(messageType)
         val request = Request.Builder()
-            .url(baseUrl.trimEnd('/') + "/send_msg")
+            .url(baseUrl.trimEnd('/') + "/$action")
             .post(body.toRequestBody("application/json".toMediaType()))
             .apply { if (config.httpToken.isNotBlank()) header("Authorization", "Bearer ${config.httpToken}") }
             .build()
@@ -138,7 +140,8 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
 
     /**
      * 调用 OneBot HTTP 通用接口（如 get_friend_list/get_group_list）。
-     * 路径优先 {httpUrl}/api/{action}，失败时回退 {httpUrl}/{action}。
+     * SnowLuma 默认 path='/' 且 action 从路径解析，优先 {httpUrl}/{action}，
+     * 失败时回退 {httpUrl}/api/{action}（兼容 NapCat 等实现）。
      * 成功回传原始响应体，失败回传 null。
      */
     fun requestApi(action: String, baseUrl: String = config.httpUrl, callback: (String?) -> Unit) {
@@ -162,8 +165,8 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
             })
         }
         val root = baseUrl.trimEnd('/')
-        doRequest("$root/api/$action") {
-            doRequest("$root/$action") {
+        doRequest("$root/$action") {
+            doRequest("$root/api/$action") {
                 callback(null)
             }
         }

@@ -163,20 +163,15 @@ class MainActivity : AppCompatActivity() {
             binding.statusText.text = "状态：正在测试 SnowLuma..."
             val wsText = binding.wsInput.text.toString().trim()
             val httpText = binding.httpInput.text.toString().trim()
-            val cfg = GameProtocolDetector.detect(
-                preferred = httpText.ifBlank { wsText },
-                hosts = listOf("127.0.0.1"),
-                ports = intArrayOf()
-            )
-            if (cfg != null) {
-                binding.wsInput.setText(cfg.wsUrl)
-                binding.httpInput.setText(cfg.httpUrl)
-                binding.statusText.text = "状态：SnowLuma 在线"
-                toast("SnowLuma 连接正常")
-            } else {
-                binding.statusText.text = "状态：SnowLuma 连接失败"
-                toast("连接失败,请检查协议端是否已启动")
-            }
+            val wsToken = binding.wsTokenInput.text.toString().trim()
+            val httpToken = binding.httpTokenInput.text.toString().trim()
+            val result = GameProtocolDetector.testConnection(wsText, wsToken, httpText, httpToken)
+            val parts = mutableListOf<String>()
+            parts += if (result.wsReachable) "WS 可连接" else "WS 不可连接"
+            parts += if (result.httpReachable) "HTTP 可连接" else "HTTP 不可连接"
+            val all = result.wsReachable && result.httpReachable
+            binding.statusText.text = "状态：${if (all) "SnowLuma 在线" else "SnowLuma 连接失败"}（${parts.joinToString("，")}）"
+            toast(if (all) "SnowLuma 连接正常" else "连接失败，请检查地址与协议端是否已启动")
         }
     }
 

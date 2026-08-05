@@ -8,7 +8,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -32,6 +34,33 @@ object GameProtocolDetector {
         .build()
 
     fun defaultPorts(): IntArray = intArrayOf(3001, 3000, 8080, 3005, 5000)
+
+    /** 连接测试结果：ws/http 各自是否可达。 */
+    data class ConnectionTestResult(
+        val wsReachable: Boolean,
+        val httpReachable: Boolean
+    )
+
+    /** 直接对用户填写的地址做真实连接测试（不做任何端口推导）。
+     *  空地址视为未配置，直接判为不可达。 */
+    suspend fun testConnection(
+        wsUrl: String,
+        wsToken: String,
+        httpUrl: String,
+        httpToken: String
+    ): ConnectionTestResult {
+        val ws = wsUrl.trim()
+        val http = httpUrl.trim()
+        return coroutineScope {
+            val wsJob = async(Dispatchers.IO) {
+                if (ws.isEmpty()) false else probeWs(ws, wsToken.trim().ifBlank { null })
+            }
+            val httpJob = async(Dispatchers.IO) {
+                if (http.isEmpty()) false else probeHttp(http, httpToken.trim().ifBlank { null })
+            }
+            ConnectionTestResult(wsJob.await(), httpJob.await())
+        }
+    }
 
     suspend fun detect(
         preferred: String? = null,
@@ -76,10 +105,16 @@ object GameProtocolDetector {
         return wsUrl != base && probeWs(wsUrl)
     }
 
-    private fun httpProbe(httpBase: String): Boolean = try {
-        val resp = client.newCall(
-            Request.Builder().url(httpBase.trimEnd('/') + "/api/get_version").get().build()
-        ).execute()
+    private fun httpProbe(httpBase: String): Boolean = probeHttp(httpBase, null)
+
+    /** 健康检查：SnowLuma 的真实动作为 get_version_info（默认 path='/'，action 从路径解析）。 */
+    fun probeHttp(httpBase: String, token: String?): Boolean = try {
+        val builder = Request.Builder().url(httpBase.trimEnd('/') + "/get_version_info")
+            .post("{}".toRequestBody("application/json".toMediaType()))
+        if (!token.isNullOrBlank()) {
+            builder.header("Authorization", "Bearer $token")
+        }
+        val resp = client.newCall(builder.build()).execute()
         resp.use { r ->
             if (!r.isSuccessful) return@use false
             val body = r.body?.string().orEmpty()
@@ -92,13 +127,19 @@ object GameProtocolDetector {
     }
 
     /** WebSocket 握手探测：onOpen 触发即判成功（连接建立后关闭）。 */
-    private fun probeWs(wsUrl: String): Boolean {
+    private fun probeWs(wsUrl: String): Boolean = probeWs(wsUrl, null)
+
+    fun probeWs(wsUrl: String, token: String?): Boolean {
         val latch = java.util.concurrent.CountDownLatch(1)
         val result = BooleanArray(1) { false }
         var wsRef: WebSocket? = null
         try {
+            val builder = Request.Builder().url(wsUrl)
+            if (!token.isNullOrBlank()) {
+                builder.header("Authorization", "Bearer $token")
+            }
             val ws: WebSocket = wsClient.newWebSocket(
-                Request.Builder().url(wsUrl).build(),
+                builder.build(),
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
                         result[0] = true

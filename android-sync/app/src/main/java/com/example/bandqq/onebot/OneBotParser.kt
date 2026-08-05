@@ -97,4 +97,8 @@ class OneBotParser {
         body.add("params", params)
         return body.toString()
     }
+
+    /** 与 buildSendRequest 对应的 OneBot 动作路径名。 */
+    fun actionName(messageType: String): String =
+        if (messageType == "group") "send_group_msg" else "send_private_msg"
 }

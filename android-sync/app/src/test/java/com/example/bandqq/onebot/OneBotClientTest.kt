@@ -38,7 +38,23 @@ class OneBotClientTest {
         latch.await(3, TimeUnit.SECONDS)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
+        assertTrue(request.path!!.contains("send_group_msg"))
         assertTrue(request.body.readUtf8().contains("send_group_msg"))
+        assertTrue(ok)
+    }
+
+    @Test
+    fun `sendMessage 发私聊走 send_private_msg 路径`() = runBlocking {
+        val url = server.url("/").toString()
+        server.enqueue(MockResponse().setBody("""{"status":"ok"}"""))
+        val client = OneBotClient(parser)
+        val latch = CountDownLatch(1)
+        var ok = false
+        client.sendMessage("private", "456", "hi", url) { ok = it; latch.countDown() }
+        latch.await(3, TimeUnit.SECONDS)
+        val request = server.takeRequest()
+        assertTrue(request.path!!.contains("send_private_msg"))
+        assertTrue(request.body.readUtf8().contains("send_private_msg"))
         assertTrue(ok)
     }
 

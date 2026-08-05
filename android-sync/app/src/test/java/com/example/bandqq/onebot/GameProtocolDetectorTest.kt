@@ -42,6 +42,42 @@ class GameProtocolDetectorTest {
     }
 
     @Test
+    fun `probeHttp 对 get_version_info 返回 JSON 判定为可连接`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"status":"ok","data":{"app_name":"SnowLuma"}}"""))
+        val ok = GameProtocolDetector.probeHttp(server.url("/").toString().trimEnd('/'), null)
+        assertTrue(ok)
+        val request = server.takeRequest()
+        assertTrue(request.path!!.contains("get_version_info"))
+    }
+
+    @Test
+    fun `probeHttp 使用 Bearer token`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"status":"ok"}"""))
+        val ok = GameProtocolDetector.probeHttp(server.url("/").toString().trimEnd('/'), "secret")
+        assertTrue(ok)
+        val request = server.takeRequest()
+        assertEquals("Bearer secret", request.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `testConnection 直接测试用户输入的 ws 与 http 地址`() = runBlocking {
+        val http = server.url("/").toString().trimEnd('/')
+        server.enqueue(MockResponse().setBody("""{"status":"ok","data":{"online":true}}"""))
+        val result = GameProtocolDetector.testConnection("", "", http, "")
+        assertTrue("HTTP 应可达", result.httpReachable)
+        assertTrue("空 WS 地址判为不可达", !result.wsReachable)
+    }
+
+    @Test
+    fun `testConnection 对不可达地址判为失败不抛异常`() = runBlocking {
+        val dead = "http://127.0.0.1:${server.port}"
+        val result = GameProtocolDetector.testConnection("ws://127.0.0.1:${server.port}", "", dead, "")
+        // 无真实服务的端口:两端都应失败
+        assertTrue(!result.wsReachable)
+        assertTrue(!result.httpReachable)
+    }
+
+    @Test
     fun `detect 对非 JSON 响应返回 null`() = runBlocking {
         server.enqueue(MockResponse().setBody("<html>404</html>"))
         val cfg = GameProtocolDetector.detect(
