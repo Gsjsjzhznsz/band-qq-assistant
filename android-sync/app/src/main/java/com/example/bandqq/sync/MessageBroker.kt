@@ -88,7 +88,6 @@ class MessageBroker(
         SyncState.oneBotConnected = connected
         bandSender(SyncStatePush.buildFrame())
         if (connected && !autoFetchDone) {
-            autoFetchDone = true
             tryAutoFetch()
         }
     }

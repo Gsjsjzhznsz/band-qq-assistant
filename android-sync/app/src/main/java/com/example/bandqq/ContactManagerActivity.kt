@@ -14,7 +14,9 @@ import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.onebot.OneBotClient
 import com.example.bandqq.onebot.OneBotParser
 import com.example.bandqq.sync.InterconnectBridge
+import com.example.bandqq.sync.MessageStore
 import com.example.bandqq.sync.StoreHolder
+import com.example.bandqq.sync.SyncPreferencesKv
 import com.example.bandqq.sync.VisibleContact
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -44,14 +46,22 @@ class ContactManagerActivity : AppCompatActivity() {
         findViewById<View>(R.id.saveContactsBtn).setOnClickListener { saveSelection() }
         findViewById<View>(R.id.refreshContactsBtn).setOnClickListener { loadContacts() }
 
+        ensureStore()
         loadCachedIntoCurrentTab()
         loadContacts()
     }
 
     override fun onResume() {
         super.onResume()
+        ensureStore()
         loadCachedIntoCurrentTab()
         loadContacts()
+    }
+
+    private fun ensureStore() {
+        if (StoreHolder.store == null) {
+            StoreHolder.setStore(MessageStore(SyncPreferencesKv(this)))
+        }
     }
 
     private fun loadCachedIntoCurrentTab() {
@@ -71,7 +81,7 @@ class ContactManagerActivity : AppCompatActivity() {
         val rows = parseContacts(type, raw)
         if (type == "private") friends = rows else groups = rows
         val store = StoreHolder.store
-        if (store != null) {
+        if (store != null && rows.isNotEmpty()) {
             val cached = store.getCachedContacts().filter { it.type != type }
             store.setCachedContacts(cached + rows)
         }

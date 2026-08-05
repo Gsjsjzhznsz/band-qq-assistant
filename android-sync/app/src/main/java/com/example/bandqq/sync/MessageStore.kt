@@ -233,8 +233,10 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
     fun getVisibleContacts(): List<VisibleContact> = visibleContacts.toList()
 
+    @Synchronized
     fun getCachedContacts(): List<VisibleContact> = cachedContacts.toList()
 
+    @Synchronized
     fun setCachedContacts(list: List<VisibleContact>) {
         cachedContacts = list.distinctBy { it.id }.toMutableList()
         persistCachedContacts()

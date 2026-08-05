@@ -4,7 +4,6 @@ import com.google.gson.JsonParser
 
 object ContactCache {
 
-    /** 解析 OneBot get_friend_list/get_group_list 响应为联系人列表 */
     fun parseContactResponse(type: String, raw: String?): List<VisibleContact> {
         if (raw == null) return emptyList()
         val out = mutableListOf<VisibleContact>()

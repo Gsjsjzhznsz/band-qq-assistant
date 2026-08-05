@@ -90,13 +90,26 @@ class SyncService : Service() {
         StoreHolder.setStore(store)
         broker = MessageBroker(parser, oneBot, store) { s ->
             val http = ConfigHolder.config.endpoint.httpUrl
+            var okFriend = false
+            var okGroup = false
+            fun settled() {
+                if (okFriend && okGroup) broker.autoFetchDone = true
+            }
             oneBot.requestApi("get_friend_list", http) { raw ->
                 val list = ContactCache.parseContactResponse("private", raw)
-                if (list.isNotEmpty()) s.setCachedContacts(s.getCachedContacts().filter { it.type != "private" } + list)
+                if (list.isNotEmpty()) {
+                    s.setCachedContacts(s.getCachedContacts().filter { it.type != "private" } + list)
+                    okFriend = true
+                }
+                settled()
             }
             oneBot.requestApi("get_group_list", http) { raw ->
                 val list = ContactCache.parseContactResponse("group", raw)
-                if (list.isNotEmpty()) s.setCachedContacts(s.getCachedContacts().filter { it.type != "group" } + list)
+                if (list.isNotEmpty()) {
+                    s.setCachedContacts(s.getCachedContacts().filter { it.type != "group" } + list)
+                    okGroup = true
+                }
+                settled()
             }
         }
         oneBot.startWithListener(broker)
