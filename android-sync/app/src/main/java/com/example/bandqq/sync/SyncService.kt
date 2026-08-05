@@ -9,7 +9,6 @@ import android.content.Intent
 import android.os.IBinder
 import com.example.bandqq.R
 import com.example.bandqq.config.ConfigManager
-import com.example.bandqq.config.getActiveEndpoint
 import com.example.bandqq.onebot.OneBotClient
 import com.example.bandqq.onebot.OneBotListener
 import com.example.bandqq.onebot.OneBotMessage
@@ -105,7 +104,7 @@ class SyncService : Service() {
                 startForeground(NOTIFICATION_ID, buildNotification())
                 scope.launch {
                     val config = configManager.load()
-                    oneBot.start(config.getActiveEndpoint(), broker)
+                    oneBot.start(config.endpoint, broker)
                     InterconnectBridge.connect()
                 }
             }

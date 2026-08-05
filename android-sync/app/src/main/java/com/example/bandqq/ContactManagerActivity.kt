@@ -11,7 +11,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.bandqq.config.ConfigHolder
-import com.example.bandqq.config.getActiveEndpoint
 import com.example.bandqq.onebot.OneBotClient
 import com.example.bandqq.onebot.OneBotParser
 import com.example.bandqq.sync.InterconnectBridge
@@ -53,7 +52,7 @@ class ContactManagerActivity : AppCompatActivity() {
     }
 
     private fun loadContacts() {
-        val http = ConfigHolder.config.getActiveEndpoint().httpUrl
+        val http = ConfigHolder.config.endpoint.httpUrl
         client.requestApi("get_friend_list", http) { raw -> runOnUiThread { applyList("private", raw) } }
         client.requestApi("get_group_list", http) { raw -> runOnUiThread { applyList("group", raw) } }
     }

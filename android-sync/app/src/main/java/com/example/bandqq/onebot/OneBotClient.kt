@@ -36,7 +36,7 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var reconnectJob: Job? = null
     private var ws: WebSocket? = null
-    private var config: EndpointConfig = EndpointConfig("ws://127.0.0.1:3001", "http://127.0.0.1:3000", "")
+    private var config: EndpointConfig = EndpointConfig("ws://127.0.0.1:3001", "", "http://127.0.0.1:3000", "")
     private var listener: OneBotListener? = null
     @Volatile private var connected = false
 
@@ -79,8 +79,8 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
 
     private fun connectOnce() {
         val builder = Request.Builder().url(config.wsUrl)
-        if (config.token.isNotBlank()) {
-            builder.header("Authorization", "Bearer ${config.token}")
+        if (config.wsToken.isNotBlank()) {
+            builder.header("Authorization", "Bearer ${config.wsToken}")
         }
         val req = builder.build()
         ws = client.newWebSocket(req, object : WebSocketListener() {
@@ -120,7 +120,7 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         val request = Request.Builder()
             .url(baseUrl.trimEnd('/') + "/send_msg")
             .post(body.toRequestBody("application/json".toMediaType()))
-            .apply { if (config.token.isNotBlank()) header("Authorization", "Bearer ${config.token}") }
+            .apply { if (config.httpToken.isNotBlank()) header("Authorization", "Bearer ${config.httpToken}") }
             .build()
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
@@ -146,7 +146,7 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
             val request = Request.Builder()
                 .url(url)
                 .post("{}".toRequestBody("application/json".toMediaType()))
-                .apply { if (config.token.isNotBlank()) header("Authorization", "Bearer ${config.token}") }
+                .apply { if (config.httpToken.isNotBlank()) header("Authorization", "Bearer ${config.httpToken}") }
                 .build()
             client.newCall(request).enqueue(object : okhttp3.Callback {
                 override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
