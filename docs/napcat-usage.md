@@ -1,111 +1,101 @@
-﻿# NapCat 安装与使用详细教程
+﻿# SnowLuma 协议端 安装与使用详细教程
 
-NapCat 是 QQ 机器人协议端：它把 QQ 账号变成可编程的 OneBot 服务，供同步器 App 收发消息。
-本项目里它跑在**同一台手机的 Termux 环境**内，同步器通过 `ws://127.0.0.1:3001` 连接它。
+SnowLuma 是自带 Node.js 运行时的 OneBot v11 兼容协议端（不依赖 QQNT），它把 QQ 账号变成可编程的
+OneBot 服务，供同步器 App 收发消息。本项目使用它替代 NapCat，跑在**手机本机**或**局域网内的其它设备**
+（开发时通常跑在电脑上），同步器通过 WS / HTTP 两个独立端点连接它。
 
-> 环境要求：一台 Android 手机（系统 Android 8+）、一个 QQ 小号、可上网的 WiFi。
+> 环境要求：一台 Android 手机（系统 Android 8+）、一个 QQ 小号、可上网的 WiFi；
+> 若 SnowLuma 跑在电脑上，需手机与电脑在同一局域网。
 
 ---
 
 ## 0. 总体流程
 
 ```
-手机装 Termux（F-Droid 版）
-   └─ Termux 内安装 NapCat
-        └─ 打开 NapCat WebUI 扫码登录 QQ
-             └─ 新建 WebSocket 服务（端口 3001）
-                  └─ 同步器 App「自动探测」→ 连接成功
+启动 SnowLuma（自带 Node，免安装）
+   └─ 打开 SnowLuma WebUI 扫码登录 QQ
+        └─ 配置 HTTP API（独立端口）与 WS 服务端（独立端口）
+             └─ 把监听 host 改为 0.0.0.0（局域网可访问）
+                  └─ 同步器 App「自动探测」/「测试连接」→ 连接成功 → 开始同步
 ```
 
 ---
 
-## 1. 只装 Termux（关键：用 F-Droid 版，别用 Google Play 版）
+## 1. 获取并启动 SnowLuma
 
-> **为什么必须 F-Droid 版？** Google Play 版 Termux 已停止迭代、包与签名常有兼容问题，
-> 会报 `Failed to get package context for the "com.termux" package`。
-> 项目文档早前推荐的 astrbot-termux APK 也是同类封装问题，现已弃用。
-
-1. 手机浏览器访问 **F-Droid 官方 Termux 页面**：`https://f-droid.org/packages/com.termux/`
-   - 也可先装 F-Droid 客户端（`https://f-droid.org`），在客户端内搜索 `Termux` 安装。
-2. 下载并安装 `Termux` APK。
-3. 打开 Termux，等待基础初始化完成（自动更新软件源）。
-4. 依次执行（更新软件源与系统包）：
-   ```
-   pkg update
-   pkg upgrade -y
-   ```
-   > 首次运行可能较慢，需联网。
+1. 到 SnowLuma 官方发布页下载对应平台的压缩包（Windows / macOS / Linux），解压到本地。
+2. 运行解压目录中的启动脚本（如 `start.sh` 或对应可执行文件），首次运行会初始化 Node 环境与配置。
+3. 启动后在浏览器打开 **WebUI**，界面内会展示二维码，用 **QQ 扫码登录**（推荐用小号）。
+4. 登录成功后 WebUI 会显示账号 **在线**。
 
 ---
 
-## 2. 用官方脚本安装 NapCat
+## 2. 配置 OneBot 服务（同步器需要）
 
-在 Termux 终端内粘贴并执行（一行）：
+在 SnowLuma WebUI 中开启 **HTTP API** 与 **WS 服务端** 两个端点：
 
-```sh
-curl -o install.sh https://ncat.wiki/binary/install_script/install.sh && bash install.sh
-```
+- **HTTP API**：独立端口（默认如 `3000`），用于发送消息、拉联系人、健康检查。
+- **WS 服务端**：独立端口（默认如 `3001`），用于实时推送收到的消息。
+- 每个端点可分别设置 **Access Token**（可选），与 App 中填写的 token 保持一致。
 
-安装脚本会自动：
-- 识别 Termux 环境（基于 `proot` 的 Linux 用户态）
-- 下载 NapCat 并配置启动
+### 关键配置建议（实测通过）
 
-> 若提示需要镜像加速或挂 NetCat，按脚本提示即可。安装失败的常见修复：
-> - `curl` 网络问题：`pkg install curl -y` 后重试
-> - proot 相关报错：`pkg install proot -y && pkg upgrade -y` 后重试
+| 项 | 建议值 / 操作 |
+| --- | --- |
+| WS / HTTP 监听 host | `0.0.0.0`（默认仅 127.0.0.1，模拟器或局域网设备无法访问） |
+| 「上报自身消息」 | 合成消息与服务端自身两处均开启（否则发消息检测 / 顺序可能异常） |
+| 「复用端口收 WS」 | 保持关闭（HTTP 与 WS 端口分离，勿复用同一端口） |
+| 消息格式 | 使用 **数组** 格式（与 App 解析逻辑兼容） |
 
----
-
-## 3. 启动 NapCat & 扫码登录
-
-1. 安装脚本跑完后启动 NapCat。
-2. 在手机浏览器打开 **WebUI**：`http://127.0.0.1:6099`
-   - 界面内会展示一个二维码，用 **QQ 扫码登录**（推荐用小号）。
-3. 登录成功后 WebUI 会显示账号在线。
+> 配置改动后**保存并重启** SnowLuma 使其生效。
 
 ---
 
-## 4. 配置 OneBot 服务（同步器需要）
+## 3. 同步器 App 对接
 
-1. 仍在 NapCat WebUI 中，进入「**网络配置**」。
-2. 新建一个 **WebSocket 服务**（反向或正向均可，本项目用**反向 WebSocket**）：
-   - 地址留空（本机）或填 `127.0.0.1`
-   - **端口填 `3000`（HTTP）与 `3001`（WebSocket）**，或按需取一个不冲突的端口
-3. （可选、建议）设置 **Access Token** 并记录。
-4. 保存后确认该服务显示 **在线**。
+1. 安装并打开本项目的**同步器 App**（`phone/app-release.apk` 或 `phone/app-debug.apk`）。
+2. 在「SnowLuma 配置」组中填写：
+   - `WS 地址`（如 `ws://127.0.0.1:3001`）
+   - `WS Token`（可选）
+   - `HTTP 地址`（如 `http://127.0.0.1:3000`）
+   - `HTTP Token`（可选）
+3. 用「**自动探测(局域网)**」扫描本机 / 局域网，自动发现 SnowLuma 并保存配置。
+   - 成功：状态显示「SnowLuma 在线」，配置已保存。
+   - 失败：可按提示检查 SnowLuma 是否启动、host 是否为 0.0.0.0、QQ 是否已登录。
+4. 也可用「**测试 SnowLuma 连接**」按所填的 WS / HTTP 地址分别做个真实连接测试，
+   结果分别提示「WS 可连接 / HTTP 可连接」（不再推导或改写端口）。
+5. 点击「**开始同步**」连接 SnowLuma。
 
----
-
-## 5. 同步器 App 对接
-
-1. 安装并打开本项目的**同步器 App**（`dist/app-release.apk`）。
-2. 点击「**自动探测 NapCat**」：
-   - 成功：自动扫描并回填 `ws://…:3001` 与 `http://…:3000`，状态显示「NapCat 在线」，配置已保存。
-   - 失败：弹窗提示，可按提示检查 Termux/NapCat 是否启动与登录。
-3. 如探测到 HTTP 端口不是 3000，App 会自动推导同主机的 WebSocket 端口（3000→3001）。
-4. （可选）若开启了 token，在「Access Token」栏填入相同 token。
-5. 点击「保存配置」，再点「启动同步」。
-
-> 探测的判定：会向候选地址发送 `GET /api/get_version`（OneBot 标准端点），
-> 只有返回合法 JSON 才认定为 NapCat，避免误连到其它 HTTP 服务。
+> **连接判定**：App 对 HTTP 地址调用 `POST /get_version_info`（SnowLuma 真实动作，路径从 action 解析），
+> 返回合法 JSON 即认定为可连接（错误 token 会返回 401）；WS 端握手携带 token，成功返回 101。
 
 ---
 
-## 6. 常见问题
+## 4. 连接成功后的联系人与聊天记录
+
+连接 SnowLuma 成功后，App 会自动拉取好友 / 群列表并**缓存**到本地，供联系人页与聊天记录页使用：
+
+- **联系人页**：打开时先显示本地缓存，再异步向后端刷新；页面上有「**刷新联系人**」按钮可手动刷新。
+- **聊天记录页**：即使手环**尚未连接 / 未启动同步服务**，也能基于本地持久化缓存查看既有的聊天记录，
+  不再出现空白页。
+
+---
+
+## 5. 常见问题
 
 | 现象 | 处理 |
 | --- | --- |
-| 报 `Failed to get package context` | Termux 换回 F-Droid 官方版，勿用 Play/第三方封装 |
-| 装了标准 Termux 但不会装 NapCat | 执行第 2 步官方 Installer 一行命令 |
-| WebUI 打不开 | 确认 NapCat 已启动；浏览器用 `127.0.0.1:6099` |
-| 探测不到 | 确认 NapCat 网络服务已「在线」、QQ 已登录，再点自动探测 |
-| 端口冲突 | 在 WebUI 改为其它端口，App 会自动扫描发现 |
-| 被系统杀后台 | 把 Termux 加入电池优化白名单 |
+| 探测/测试不到 SnowLuma | 确认 SnowLuma 已启动、host 已改为 0.0.0.0、QQ 已登录 |
+| HTTP 可连接但 WS 失败 | WS 与 HTTP 端口须独立（关闭复用端口），token 与监听从一致 |
+| 收到 401 | Access Token 不一致，检查 WebUI 与 App 中填的 token |
+| 连接成功但收不到消息 | 确认「上报自身消息」开启、消息格式为数组、WS 端口正确 |
+| 模拟器连不上电脑 | 电脑防火墙放行 3000 / 3001 端口，两端同一局域网 |
+| 被系统杀后台 | 把同步器 App 加入电池优化白名单 |
 
 ---
 
-## 7. 风控提示
+## 6. 风控提示
 
-- NapCat 基于逆向协议，**请务必使用 QQ 小号**，避免主号触发风控封禁。
+- SnowLuma 基于逆向协议，**请务必使用 QQ 小号**，避免主号触发风控封禁。
 - 避免高频群发、频繁加群等异常行为。
 - 如账号被冻结/限制，建议换号重试。
