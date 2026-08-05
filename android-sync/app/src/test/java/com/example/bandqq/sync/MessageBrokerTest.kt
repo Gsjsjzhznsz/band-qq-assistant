@@ -104,6 +104,19 @@ class MessageBrokerTest {
         val frame = broker.handleOneBotEvent(OneBotMessage("group", "999", "456", "张三", "你好", 1700000000L))
         assertTrue(frame!!.contains("\"visible\":false"))
     }
+
+    @Test
+    fun `onState 推送的 connect_state 帧含 band 与 protocol 字段`() {
+        SyncState.bandConnected = true
+        SyncState.oneBotConnected = false
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+        val out = mutableListOf<String>()
+        broker.bandSender = { out.add(it) }
+        broker.onState(true)
+        assertTrue(out[0].contains("\"type\":\"connect_state\""))
+        assertTrue(out[0].contains("\"band\":true"))
+        assertTrue(out[0].contains("\"protocol\":false"))
+    }
 }
 
 class FakeOneBot(private val onSend: (String, String, String) -> Boolean) : MessageSender {

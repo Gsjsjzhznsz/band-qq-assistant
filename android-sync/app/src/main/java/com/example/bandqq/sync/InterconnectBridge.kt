@@ -2,7 +2,6 @@ package com.example.bandqq.sync
 
 import android.content.Context
 import android.util.Log
-import com.google.gson.JsonObject
 import com.xiaomi.xms.wearable.Wearable
 import com.xiaomi.xms.wearable.auth.AuthApi
 import com.xiaomi.xms.wearable.auth.Permission
@@ -185,21 +184,13 @@ object InterconnectBridge {
     fun onConnect() {
         SyncState.bandConnected = true
         BandStateBus.notify(true)
-        broker?.bandSender?.invoke(buildStateFrame(true))
+        broker?.bandSender?.invoke(SyncStatePush.buildFrame())
     }
 
     fun onDisconnect() {
         SyncState.bandConnected = false
         BandStateBus.notify(false)
-        broker?.bandSender?.invoke(buildStateFrame(false))
-    }
-
-    private fun buildStateFrame(connected: Boolean): String {
-        val obj = JsonObject()
-        obj.addProperty("type", "connect_state")
-        obj.addProperty("seq", 0)
-        obj.addProperty("state", if (connected) "connected" else "disconnected")
-        return obj.toString()
+        broker?.bandSender?.invoke(SyncStatePush.buildFrame())
     }
 
     fun release() {

@@ -2,7 +2,6 @@ package com.example.bandqq.sync
 
 import com.example.bandqq.onebot.OneBotMessage
 import com.example.bandqq.onebot.OneBotParser
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
 interface MessageSender {
@@ -83,10 +82,6 @@ class MessageBroker(
     }
 
     override fun onState(connected: Boolean) {
-        val obj = JsonObject()
-        obj.addProperty("type", "connect_state")
-        obj.addProperty("seq", 0)
-        obj.addProperty("state", if (connected) "connected" else "disconnected")
-        bandSender(obj.toString())
+        bandSender(SyncStatePush.buildFrame())
     }
 }
