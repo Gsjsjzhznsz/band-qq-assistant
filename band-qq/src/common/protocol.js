@@ -23,6 +23,10 @@ export function getVisibleContacts() {
   return { type: 'get_visible_contacts', seq: nextSeq() }
 }
 
+export function getConnectState() {
+  return { type: 'get_connect_state', seq: nextSeq() }
+}
+
 export function getHistory(targetId, limit) {
   return { type: 'get_history', seq: nextSeq(), target_id: targetId, limit: limit || 20 }
 }
@@ -54,6 +58,7 @@ export function decodePush(raw) {
     target_id: raw.target_id,
     sender_id: raw.sender_id,
     sender_name: raw.sender_name || '',
+    target_name: raw.target_name || '',
     content: typeof raw.content === 'string' ? raw.content : degradeContent(raw.content),
     is_self: raw.is_self === true,
     time: raw.time || Date.now(),

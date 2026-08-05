@@ -67,6 +67,7 @@
     },
     onShow() {
       this.refreshStatus()
+      this.pullConnectState()
     },
     onInit() {
       this.$app.$def.on('state', () => this.refreshStatus())
@@ -76,6 +77,15 @@
     },
     goBack() {
       router.back()
+    },
+    async pullConnectState() {
+      const api = this.$app.$def.api
+      const protocol = this.$app.$def.protocol
+      try {
+        await api.send(protocol.getConnectState())
+      } catch (e) {
+        console.error('pull connect state failed', e)
+      }
     },
     async refreshStatus() {
       const store = this.$app.$def.store

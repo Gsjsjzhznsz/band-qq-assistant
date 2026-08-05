@@ -101,7 +101,7 @@ export function createStore(storageImpl) {
       const conv = {
         id: key,
         type: msg.message_type,
-        name: msg.sender_name || key,
+        name: msg.target_name || msg.sender_name || key,
         last_msg: content,
         time: msg.time || Date.now(),
         is_temporary: isTemp

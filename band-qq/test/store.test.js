@@ -112,4 +112,18 @@ describe('store', () => {
     assert.equal(s.band, true)
     assert.equal(s.protocol, false)
   })
+
+  it('群消息会话名优先用 target_name', async () => {
+    const msg = { type: 'push_message', message_type: 'group', target_id: '100', sender_id: '1', sender_name: '张三', target_name: '技术交流群', content: 'hi', time: 1700000000 }
+    await store.upsertMessage(msg)
+    const convs = await store.getConversations()
+    assert.equal(convs[0].name, '技术交流群')
+  })
+
+  it('无 target_name 时会话名回退为 sender_name', async () => {
+    const msg = { type: 'push_message', message_type: 'private', target_id: '200', sender_id: '9', sender_name: '李四', content: 'hi', time: 1700000000 }
+    await store.upsertMessage(msg)
+    const convs = await store.getConversations()
+    assert.equal(convs[0].name, '李四')
+  })
 })

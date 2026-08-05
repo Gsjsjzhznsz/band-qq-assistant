@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush, getVisibleContacts } from '../src/common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush, getVisibleContacts, getConnectState } from '../src/common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {
@@ -46,6 +46,23 @@ describe('protocol', () => {
   it('构造 get_visible_contacts 帧', () => {
     const msg = getVisibleContacts()
     assert.equal(msg.type, 'get_visible_contacts')
+  })
+
+  it('构造 get_connect_state 帧', () => {
+    const msg = getConnectState()
+    assert.equal(msg.type, 'get_connect_state')
+  })
+
+  it('decodePush 透传 target_name', () => {
+    const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '张三', target_name: '群名', content: '你好', time: 1700000000 }
+    const msg = decodePush(raw)
+    assert.equal(msg.target_name, '群名')
+  })
+
+  it('decodePush 无 target_name 时为空串', () => {
+    const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '张三', content: '你好', time: 1700000000 }
+    const msg = decodePush(raw)
+    assert.equal(msg.target_name, '')
   })
 
   it('decodePush 透传 visible', () => {

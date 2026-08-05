@@ -62,6 +62,7 @@
     },
     onShow() {
       this.refreshStatus()
+      this.pullConnectState()
       this.loadConversations()
       this.loadVisibleContacts()
     },
@@ -74,6 +75,15 @@
       this.$app.$def.off('conversations')
       this.$app.$def.off('visible_contacts')
       this.$app.$def.off('state')
+    },
+    async pullConnectState() {
+      const api = this.$app.$def.api
+      const protocol = this.$app.$def.protocol
+      try {
+        await api.send(protocol.getConnectState())
+      } catch (e) {
+        console.error('pull connect state failed', e)
+      }
     },
     async refreshStatus() {
       const store = this.$app.$def.store
