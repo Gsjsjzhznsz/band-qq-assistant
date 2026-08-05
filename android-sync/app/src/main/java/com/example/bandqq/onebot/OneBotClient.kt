@@ -1,7 +1,7 @@
 package com.example.bandqq.onebot
 
 import android.util.Log
-import com.example.bandqq.config.AppConfig
+import com.example.bandqq.config.EndpointConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,11 +36,11 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var reconnectJob: Job? = null
     private var ws: WebSocket? = null
-    private var config: AppConfig = AppConfig()
+    private var config: EndpointConfig = EndpointConfig("ws://127.0.0.1:3001", "http://127.0.0.1:3000", "")
     private var listener: OneBotListener? = null
     @Volatile private var connected = false
 
-    fun start(config: AppConfig, listener: OneBotListener) {
+    fun start(config: EndpointConfig, listener: OneBotListener) {
         this.config = config
         this.listener = listener
         reconnect()

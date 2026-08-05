@@ -13,8 +13,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.config.ConfigHolder
+import com.example.bandqq.config.EndpointConfig
+import com.example.bandqq.config.ProtocolType
 import com.example.bandqq.databinding.ActivityMainBinding
-import com.example.bandqq.onebot.NapCatDetector
+import com.example.bandqq.onebot.GameProtocolDetector
 import com.example.bandqq.sync.BandStateBus
 import com.example.bandqq.sync.InterconnectBridge
 import com.example.bandqq.sync.SyncService
@@ -70,9 +72,9 @@ class MainActivity : AppCompatActivity() {
     private fun loadConfig() {
         scope.launch {
             val config = configManager.load()
-            binding.wsInput.setText(config.wsUrl)
-            binding.httpInput.setText(config.httpUrl)
-            binding.tokenInput.setText(config.token)
+            binding.wsInput.setText(config.napcat.wsUrl)
+            binding.httpInput.setText(config.napcat.httpUrl)
+            binding.tokenInput.setText(config.napcat.token)
             refreshStatus()
         }
     }
@@ -81,9 +83,11 @@ class MainActivity : AppCompatActivity() {
         binding.saveBtn.setOnClickListener {
             scope.launch {
                 val cfg = ConfigHolder.config.copy(
-                    wsUrl = binding.wsInput.text.toString().trim(),
-                    httpUrl = binding.httpInput.text.toString().trim(),
-                    token = binding.tokenInput.text.toString().trim()
+                    napcat = EndpointConfig(
+                        wsUrl = binding.wsInput.text.toString().trim(),
+                        httpUrl = binding.httpInput.text.toString().trim(),
+                        token = binding.tokenInput.text.toString().trim()
+                    )
                 )
                 configManager.save(cfg)
                 Toast.makeText(this@MainActivity, "配置已保存", Toast.LENGTH_SHORT).show()
@@ -133,15 +137,20 @@ class MainActivity : AppCompatActivity() {
     private fun probeNapCat() {
         scope.launch {
             binding.statusText.text = "状态：正在探测 NapCat..."
-            val detected = NapCatDetector.detect(binding.httpInput.text.toString().trim())
-            if (detected != null) {
-                binding.wsInput.setText(detected.wsUrl)
-                binding.httpInput.setText(detected.httpUrl)
-                val cfg = ConfigHolder.config.copy(
-                    wsUrl = detected.wsUrl,
-                    httpUrl = detected.httpUrl,
-                    token = binding.tokenInput.text.toString().trim()
+val detected = GameProtocolDetector.detect(
+                    type = ProtocolType.NAPCAT,
+                    preferred = binding.httpInput.text.toString().trim()
                 )
+                if (detected != null) {
+                    binding.wsInput.setText(detected.wsUrl)
+                    binding.httpInput.setText(detected.httpUrl)
+                    val cfg = ConfigHolder.config.copy(
+                        napcat = EndpointConfig(
+                            wsUrl = detected.wsUrl,
+                            httpUrl = detected.httpUrl,
+                            token = binding.tokenInput.text.toString().trim()
+                        )
+                    )
                 configManager.save(cfg)
                 binding.statusText.text = "状态：NapCat 在线（${detected.httpUrl}）"
                 toast("已自动探测到 NapCat，配置已保存")
