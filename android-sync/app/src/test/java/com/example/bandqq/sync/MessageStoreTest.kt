@@ -117,4 +117,32 @@ class MessageStoreTest {
         val frame = store.buildConversationFrame(3)
         assertTrue(frame.contains("\"type\":\"group\""))
     }
+
+    @Test
+    fun `cachedContacts 持久化往返`() {
+        val kv = InMemoryKv()
+        val s1 = MessageStore(kv)
+        s1.setCachedContacts(listOf(VisibleContact("111", "private", "小明"), VisibleContact("222", "group", "群A")))
+        val reload = MessageStore(kv)
+        assertEquals(
+            listOf(VisibleContact("111", "private", "小明"), VisibleContact("222", "group", "群A")),
+            reload.getCachedContacts()
+        )
+    }
+
+    @Test
+    fun `cachedContacts 覆盖写入`() {
+        val store = MessageStore()
+        store.setCachedContacts(listOf(VisibleContact("111", "private", "小明")))
+        store.setCachedContacts(listOf(VisibleContact("222", "group", "群B")))
+        assertEquals(listOf(VisibleContact("222", "group", "群B")), store.getCachedContacts())
+    }
+
+    @Test
+    fun `cachedContacts 损坏数据回退为空`() {
+        val kv = InMemoryKv()
+        kv.set("contact_cache", "not-json")
+        val store = MessageStore(kv)
+        assertEquals(emptyList<VisibleContact>(), store.getCachedContacts())
+    }
 }

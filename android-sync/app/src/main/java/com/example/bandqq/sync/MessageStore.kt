@@ -45,6 +45,7 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
     private val MESSAGES_KEY = "chat_messages"
     private val CONVERSATIONS_KEY = "chat_conversations"
     private val VISIBLE_KEY = "visible_contacts"
+    private val CACHED_KEY = "contact_cache"
 
     private val messagesByTarget = LinkedHashMap<String, MutableList<StoredMessage>>()
     private val MAX_MESSAGES = 200
@@ -52,10 +53,12 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
     /** 联系人可见性：以手机端为主存储，持久化 */
     private var visibleContacts: MutableList<VisibleContact> = loadVisibleContacts()
+    private var cachedContacts: MutableList<VisibleContact> = loadCachedContacts()
     private val duplicates = HashSet<String>()
 
     init {
         visibleContacts = loadVisibleContacts()
+        cachedContacts = loadCachedContacts()
         loadPersistedMessages()
     }
 
@@ -162,6 +165,39 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
         persistMessages()
     }
 
+    private fun loadCachedContacts(): MutableList<VisibleContact> {
+        val raw = storage.get(CACHED_KEY, "[]")
+        return try {
+            val arr = JsonParser.parseString(raw).asJsonArray
+            val out = mutableListOf<VisibleContact>()
+            for (e in arr) {
+                val o = e.asJsonObject
+                out.add(
+                    VisibleContact(
+                        id = o.get("id")?.asString ?: "",
+                        type = o.get("type")?.asString ?: "private",
+                        name = o.get("name")?.asString ?: ""
+                    )
+                )
+            }
+            out
+        } catch (e: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun persistCachedContacts() {
+        val arr = JsonArray()
+        for (c in cachedContacts) {
+            val o = JsonObject()
+            o.addProperty("id", c.id)
+            o.addProperty("type", c.type)
+            o.addProperty("name", c.name)
+            arr.add(o)
+        }
+        storage.set(CACHED_KEY, arr.toString())
+    }
+
     private fun loadVisibleContacts(): MutableList<VisibleContact> {
         val raw = storage.get(VISIBLE_KEY, "[]")
         return try {
@@ -196,6 +232,13 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
     }
 
     fun getVisibleContacts(): List<VisibleContact> = visibleContacts.toList()
+
+    fun getCachedContacts(): List<VisibleContact> = cachedContacts.toList()
+
+    fun setCachedContacts(list: List<VisibleContact>) {
+        cachedContacts = list.distinctBy { it.id }.toMutableList()
+        persistCachedContacts()
+    }
 
     fun setVisibleContacts(list: List<VisibleContact>) {
         visibleContacts = list.distinctBy { it.id }.toMutableList()
