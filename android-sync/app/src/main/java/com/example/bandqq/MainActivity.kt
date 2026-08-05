@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -15,7 +14,6 @@ import com.example.bandqq.config.AppConfig
 import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.config.EndpointConfig
-import com.example.bandqq.config.ProtocolType
 import com.example.bandqq.databinding.ActivityMainBinding
 import com.example.bandqq.onebot.GameProtocolDetector
 import com.example.bandqq.sync.BandStateBus
@@ -26,9 +24,6 @@ import com.example.bandqq.sync.StoreHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -73,16 +68,10 @@ class MainActivity : AppCompatActivity() {
     private fun loadConfig() {
         scope.launch {
             val config = configManager.load()
-            binding.wsInput.setText(config.napcat.wsUrl)
-            binding.httpInput.setText(config.napcat.httpUrl)
-            binding.tokenInput.setText(config.napcat.token)
-            binding.snowWsInput.setText(config.snowluma.wsUrl)
-            binding.snowHttpInput.setText(config.snowluma.httpUrl)
-            binding.snowTokenInput.setText(config.snowluma.token)
-            when (config.activeType) {
-                ProtocolType.NAPCAT -> binding.napcatRadio.isChecked = true
-                ProtocolType.SNOWLUMA -> binding.snowlumaRadio.isChecked = true
-            }
+            binding.wsInput.setText(config.endpoint.wsUrl)
+            binding.wsTokenInput.setText(config.endpoint.wsToken)
+            binding.httpInput.setText(config.endpoint.httpUrl)
+            binding.httpTokenInput.setText(config.endpoint.httpToken)
             refreshStatus()
         }
     }
@@ -90,19 +79,13 @@ class MainActivity : AppCompatActivity() {
     private fun bindButtons() {
         binding.saveBtn.setOnClickListener {
             scope.launch {
-                val active = if (binding.napcatRadio.isChecked) ProtocolType.NAPCAT else ProtocolType.SNOWLUMA
-                val cfg = ConfigHolder.config.copy(
-                    napcat = EndpointConfig(
-                        binding.wsInput.text.toString().trim(),
-                        binding.httpInput.text.toString().trim(),
-                        binding.tokenInput.text.toString().trim()
-                    ),
-                    snowluma = EndpointConfig(
-                        binding.snowWsInput.text.toString().trim(),
-                        binding.snowHttpInput.text.toString().trim(),
-                        binding.snowTokenInput.text.toString().trim()
-                    ),
-                    activeType = active
+                val cfg = AppConfig(
+                    EndpointConfig(
+                        wsUrl = binding.wsInput.text.toString().trim(),
+                        wsToken = binding.wsTokenInput.text.toString().trim(),
+                        httpUrl = binding.httpInput.text.toString().trim(),
+                        httpToken = binding.httpTokenInput.text.toString().trim()
+                    )
                 )
                 configManager.save(cfg)
                 Toast.makeText(this@MainActivity, "配置已保存", Toast.LENGTH_SHORT).show()
@@ -110,7 +93,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.probeBtn.setOnClickListener { probeNapCat() }
+        binding.probeBtn.setOnClickListener { probe() }
+
+        binding.testBtn.setOnClickListener { testConnection() }
 
         binding.startBtn.setOnClickListener {
             SyncService.start(this)
@@ -148,74 +133,58 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("取消", null)
                 .show()
         }
-
-        binding.testNapBtn.setOnClickListener { testConnection(ProtocolType.NAPCAT) }
-        binding.testSnowBtn.setOnClickListener { testConnection(ProtocolType.SNOWLUMA) }
-        binding.napcatRadio.setOnClickListener { refreshStatus() }
-        binding.snowlumaRadio.setOnClickListener { refreshStatus() }
     }
 
-    private fun probeNapCat() {
+    private fun probe() {
         scope.launch {
-            val type = if (binding.napcatRadio.isChecked) ProtocolType.NAPCAT else ProtocolType.SNOWLUMA
-            val name = if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"
-            binding.statusText.text = "状态：正在局域网探测 $name..."
-            val detected = GameProtocolDetector.detect(
-                type = type,
-                preferred = if (type == ProtocolType.NAPCAT) binding.httpInput.text.toString().trim() else binding.snowHttpInput.text.toString().trim()
-            )
+            binding.statusText.text = "状态：正在局域网探测 SnowLuma..."
+            val detected = GameProtocolDetector.detect()
             if (detected != null) {
-                if (type == ProtocolType.NAPCAT) {
-                    binding.wsInput.setText(detected.wsUrl)
-                    binding.httpInput.setText(detected.httpUrl)
-                } else {
-                    binding.snowWsInput.setText(detected.wsUrl)
-                    binding.snowHttpInput.setText(detected.httpUrl)
-                }
-                val token = if (type == ProtocolType.NAPCAT) binding.tokenInput.text.toString().trim() else binding.snowTokenInput.text.toString().trim()
-                val savedEndpoint = detected.copy(token = token)
+                binding.wsInput.setText(detected.wsUrl)
+                binding.httpInput.setText(detected.httpUrl)
+                // 保留用户已填的 token,不覆盖
                 val cfg = ConfigHolder.config.copy(
-                    napcat = if (type == ProtocolType.NAPCAT) savedEndpoint else ConfigHolder.config.napcat,
-                    snowluma = if (type == ProtocolType.SNOWLUMA) savedEndpoint else ConfigHolder.config.snowluma
+                    endpoint = detected.copy(
+                        wsToken = binding.wsTokenInput.text.toString().trim(),
+                        httpToken = binding.httpTokenInput.text.toString().trim()
+                    )
                 )
                 configManager.save(cfg)
-                binding.statusText.text = "状态：$name 在线（${detected.httpUrl}）"
-                toast("已探测到 $name,配置已保存")
+                binding.statusText.text = "状态：SnowLuma 在线（${detected.httpUrl}）"
+                toast("已探测到 SnowLuma,配置已保存")
             } else {
-                binding.statusText.text = "状态：未检测到 $name,请检查协议端是否已启动"
+                binding.statusText.text = "状态：未检测到 SnowLuma,请检查协议端是否已启动"
             }
         }
     }
 
-    private fun testConnection(type: ProtocolType) {
+    private fun testConnection() {
         scope.launch {
-            binding.statusText.text = "状态：正在测试 ${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"}..."
-            val wsText = if (type == ProtocolType.NAPCAT) binding.wsInput.text.toString().trim() else binding.snowWsInput.text.toString().trim()
-            val httpText = if (type == ProtocolType.NAPCAT) binding.httpInput.text.toString().trim() else binding.snowHttpInput.text.toString().trim()
-            val cfg = GameProtocolDetector.detect(type, preferred = httpText.ifBlank { wsText }, hosts = listOf("127.0.0.1"), ports = intArrayOf())
+            binding.statusText.text = "状态：正在测试 SnowLuma..."
+            val wsText = binding.wsInput.text.toString().trim()
+            val httpText = binding.httpInput.text.toString().trim()
+            val cfg = GameProtocolDetector.detect(
+                preferred = httpText.ifBlank { wsText },
+                hosts = listOf("127.0.0.1"),
+                ports = intArrayOf()
+            )
             if (cfg != null) {
-                if (type == ProtocolType.NAPCAT) {
-                    binding.wsInput.setText(cfg.wsUrl)
-                    binding.httpInput.setText(cfg.httpUrl)
-                } else {
-                    binding.snowWsInput.setText(cfg.wsUrl)
-                    binding.snowHttpInput.setText(cfg.httpUrl)
-                }
-                binding.statusText.text = "状态：${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 在线"
-                toast("${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 连接正常")
+                binding.wsInput.setText(cfg.wsUrl)
+                binding.httpInput.setText(cfg.httpUrl)
+                binding.statusText.text = "状态：SnowLuma 在线"
+                toast("SnowLuma 连接正常")
             } else {
-                binding.statusText.text = "状态：${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 连接失败"
+                binding.statusText.text = "状态：SnowLuma 连接失败"
                 toast("连接失败,请检查协议端是否已启动")
             }
         }
     }
 
     private fun refreshStatus() {
-        val name = if (ConfigHolder.config.activeType == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"
         binding.statusText.text = when {
-            SyncState.oneBotConnected && SyncState.bandConnected -> "状态：互联已连接,$name 在线"
-            SyncState.oneBotConnected -> "状态：$name 在线,等待手环连接"
-            SyncState.bandConnected -> "状态：手环已连接,等待 $name"
+            SyncState.oneBotConnected && SyncState.bandConnected -> "状态：互联已连接,SnowLuma 在线"
+            SyncState.oneBotConnected -> "状态：SnowLuma 在线,等待手环连接"
+            SyncState.bandConnected -> "状态：手环已连接,等待 SnowLuma"
             else -> "状态：未连接（请启动同步服务）"
         }
     }
