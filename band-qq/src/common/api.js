@@ -34,27 +34,27 @@ export function createApi(interconnectImpl) {
 
   function registerOn(c, handlers) {
     messageHandler = handlers.onMessage || null
-    // 通过调用系统的 onmessage/onopen/onclose/onerror 方法注册回调
-    c.onmessage((res) => {
+    // Vela interconnect 的事件回调为属性赋值式（connect.onmessage = fn），非方法调用
+    c.onmessage = (res) => {
       try {
         const msg = JSON.parse(res.data)
         if (messageHandler) messageHandler(msg)
       } catch (e) {
         console.error('onmessage parse error', e)
       }
-    })
-    c.onopen((data) => {
+    }
+    c.onopen = (data) => {
       connected = true
       if (handlers.onOpen) handlers.onOpen(data)
-    })
-    c.onclose((data) => {
+    }
+    c.onclose = (data) => {
       connected = false
       if (handlers.onClose) handlers.onClose(data)
-    })
-    c.onerror((data) => {
+    }
+    c.onerror = (data) => {
       connected = false
       if (handlers.onError) handlers.onError(data)
-    })
+    }
   }
 
   function init(handlers) {
@@ -71,7 +71,7 @@ export function createApi(interconnectImpl) {
     return new Promise((resolve, reject) => {
       ensureConn().then((c) => {
         c.send({
-          data: JSON.stringify(payload),
+          data: payload,
           success: () => resolve(),
           fail: (data, code) => reject({ data, code })
         })
