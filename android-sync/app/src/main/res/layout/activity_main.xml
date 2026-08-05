@@ -20,7 +20,32 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="NapCat WS 地址"
+            android:text="当前协议端"
+            android:paddingTop="12dp" />
+
+        <RadioGroup
+            android:id="@+id/protocolGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/napcatRadio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NapCat" />
+
+            <RadioButton
+                android:id="@+id/snowlumaRadio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SnowLuma" />
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NapCat 配置"
             android:paddingTop="12dp" />
 
         <EditText
@@ -29,29 +54,41 @@
             android:layout_height="wrap_content"
             android:hint="ws://127.0.0.1:3001" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="HTTP 地址"
-            android:paddingTop="12dp" />
-
         <EditText
             android:id="@+id/httpInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="http://127.0.0.1:3000" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Access Token"
-            android:paddingTop="12dp" />
-
         <EditText
             android:id="@+id/tokenInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="(可选)" />
+            android:hint="NapCat Access Token (可选)" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SnowLuma 配置"
+            android:paddingTop="12dp" />
+
+        <EditText
+            android:id="@+id/snowWsInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="ws://127.0.0.1:3001" />
+
+        <EditText
+            android:id="@+id/snowHttpInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://127.0.0.1:3001" />
+
+        <EditText
+            android:id="@+id/snowTokenInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="SnowLuma Token (可选)" />
 
         <Button
             android:id="@+id/saveBtn"
@@ -64,16 +101,22 @@
             android:id="@+id/probeBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="自动探测 NapCat"
+            android:text="自动探测(局域网)"
             android:paddingTop="8dp" />
 
-        <TextView
-            android:id="@+id/probeHint"
-            android:layout_width="wrap_content"
+        <Button
+            android:id="@+id/testNapBtn"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="探测会自动扫描本机常用端口并回填配置"
-            android:textSize="12sp"
-            android:paddingTop="4dp" />
+            android:text="测试 NapCat 连接"
+            android:paddingTop="8dp" />
+
+        <Button
+            android:id="@+id/testSnowBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="测试 SnowLuma 连接"
+            android:paddingTop="8dp" />
 
         <Button
             android:id="@+id/startBtn"

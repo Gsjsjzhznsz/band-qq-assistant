@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.bandqq.config.AppConfig
 import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.config.EndpointConfig
@@ -75,6 +76,13 @@ class MainActivity : AppCompatActivity() {
             binding.wsInput.setText(config.napcat.wsUrl)
             binding.httpInput.setText(config.napcat.httpUrl)
             binding.tokenInput.setText(config.napcat.token)
+            binding.snowWsInput.setText(config.snowluma.wsUrl)
+            binding.snowHttpInput.setText(config.snowluma.httpUrl)
+            binding.snowTokenInput.setText(config.snowluma.token)
+            when (config.activeType) {
+                ProtocolType.NAPCAT -> binding.napcatRadio.isChecked = true
+                ProtocolType.SNOWLUMA -> binding.snowlumaRadio.isChecked = true
+            }
             refreshStatus()
         }
     }
@@ -82,15 +90,23 @@ class MainActivity : AppCompatActivity() {
     private fun bindButtons() {
         binding.saveBtn.setOnClickListener {
             scope.launch {
+                val active = if (binding.napcatRadio.isChecked) ProtocolType.NAPCAT else ProtocolType.SNOWLUMA
                 val cfg = ConfigHolder.config.copy(
                     napcat = EndpointConfig(
-                        wsUrl = binding.wsInput.text.toString().trim(),
-                        httpUrl = binding.httpInput.text.toString().trim(),
-                        token = binding.tokenInput.text.toString().trim()
-                    )
+                        binding.wsInput.text.toString().trim(),
+                        binding.httpInput.text.toString().trim(),
+                        binding.tokenInput.text.toString().trim()
+                    ),
+                    snowluma = EndpointConfig(
+                        binding.snowWsInput.text.toString().trim(),
+                        binding.snowHttpInput.text.toString().trim(),
+                        binding.snowTokenInput.text.toString().trim()
+                    ),
+                    activeType = active
                 )
                 configManager.save(cfg)
                 Toast.makeText(this@MainActivity, "配置已保存", Toast.LENGTH_SHORT).show()
+                refreshStatus()
             }
         }
 
@@ -132,55 +148,72 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("取消", null)
                 .show()
         }
+
+        binding.testNapBtn.setOnClickListener { testConnection(ProtocolType.NAPCAT) }
+        binding.testSnowBtn.setOnClickListener { testConnection(ProtocolType.SNOWLUMA) }
+        binding.napcatRadio.setOnClickListener { refreshStatus() }
+        binding.snowlumaRadio.setOnClickListener { refreshStatus() }
     }
 
     private fun probeNapCat() {
         scope.launch {
-            binding.statusText.text = "状态：正在探测 NapCat..."
-val detected = GameProtocolDetector.detect(
-                    type = ProtocolType.NAPCAT,
-                    preferred = binding.httpInput.text.toString().trim()
-                )
-                if (detected != null) {
+            val type = if (binding.napcatRadio.isChecked) ProtocolType.NAPCAT else ProtocolType.SNOWLUMA
+            val name = if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"
+            binding.statusText.text = "状态：正在局域网探测 $name..."
+            val detected = GameProtocolDetector.detect(
+                type = type,
+                preferred = if (type == ProtocolType.NAPCAT) binding.httpInput.text.toString().trim() else binding.snowHttpInput.text.toString().trim()
+            )
+            if (detected != null) {
+                if (type == ProtocolType.NAPCAT) {
                     binding.wsInput.setText(detected.wsUrl)
                     binding.httpInput.setText(detected.httpUrl)
-                    val cfg = ConfigHolder.config.copy(
-                        napcat = EndpointConfig(
-                            wsUrl = detected.wsUrl,
-                            httpUrl = detected.httpUrl,
-                            token = binding.tokenInput.text.toString().trim()
-                        )
-                    )
+                } else {
+                    binding.snowWsInput.setText(detected.wsUrl)
+                    binding.snowHttpInput.setText(detected.httpUrl)
+                }
+                val cfg = ConfigHolder.config.copy(
+                    napcat = if (type == ProtocolType.NAPCAT) detected else ConfigHolder.config.napcat,
+                    snowluma = if (type == ProtocolType.SNOWLUMA) detected else ConfigHolder.config.snowluma
+                )
                 configManager.save(cfg)
-                binding.statusText.text = "状态：NapCat 在线（${detected.httpUrl}）"
-                toast("已自动探测到 NapCat，配置已保存")
+                binding.statusText.text = "状态：$name 在线（${detected.httpUrl}）"
+                toast("已探测到 $name,配置已保存")
             } else {
-                binding.statusText.text = "状态：未检测到 NapCat，请检查是否已安装并启动"
-                promptInstallNapCat()
+                binding.statusText.text = "状态：未检测到 $name,请检查协议端是否已启动"
             }
         }
     }
 
-    private fun promptInstallNapCat() {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("未检测到 NapCat")
-                .setMessage("未在本机发现可用的 NapCat 服务。\n\nNapCat 是 QQ 机器人协议端，需先安装 Termux 再装 NapCat：\n\n1. 前往 F-Droid 官网下载安装 Termux（勿用 Google Play 版）\n2. 在 Termux 内执行：\n    curl -o install.sh https://ncat.wiki/binary/install_script/install.sh && bash install.sh\n3. 打开 NapCat WebUI（http://127.0.0.1:6099）扫码登录 QQ\n4. 回到本页点击“自动探测 NapCat”\n\n详细图文教程见项目 docs/napcat-usage.md")
-                .setPositiveButton("查看安装教程") { _, _ -> openTutorial() }
-                .setNegativeButton("关闭", null)
-                .show()
+    private fun testConnection(type: ProtocolType) {
+        scope.launch {
+            binding.statusText.text = "状态：正在测试 ${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"}..."
+            val wsText = if (type == ProtocolType.NAPCAT) binding.wsInput.text.toString().trim() else binding.snowWsInput.text.toString().trim()
+            val httpText = if (type == ProtocolType.NAPCAT) binding.httpInput.text.toString().trim() else binding.snowHttpInput.text.toString().trim()
+            val cfg = GameProtocolDetector.detect(type, preferred = httpText.ifBlank { wsText }, hosts = listOf("127.0.0.1"), ports = intArrayOf())
+            if (cfg != null) {
+                if (type == ProtocolType.NAPCAT) {
+                    binding.wsInput.setText(cfg.wsUrl)
+                    binding.httpInput.setText(cfg.httpUrl)
+                } else {
+                    binding.snowWsInput.setText(cfg.wsUrl)
+                    binding.snowHttpInput.setText(cfg.httpUrl)
+                }
+                binding.statusText.text = "状态：${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 在线"
+                toast("${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 连接正常")
+            } else {
+                binding.statusText.text = "状态：${if (type == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"} 连接失败"
+                toast("连接失败,请检查协议端是否已启动")
+            }
         }
     }
 
-    private fun openTutorial() {
-        toast("请参照项目 docs/napcat-usage.md 的安装教程")
-    }
-
     private fun refreshStatus() {
+        val name = if (ConfigHolder.config.activeType == ProtocolType.NAPCAT) "NapCat" else "SnowLuma"
         binding.statusText.text = when {
-            SyncState.oneBotConnected && SyncState.bandConnected -> "状态：互联已连接，NapCat 在线"
-            SyncState.oneBotConnected -> "状态：NapCat 在线，等待手环连接"
-            SyncState.bandConnected -> "状态：手环已连接，等待 NapCat"
+            SyncState.oneBotConnected && SyncState.bandConnected -> "状态：互联已连接,$name 在线"
+            SyncState.oneBotConnected -> "状态：$name 在线,等待手环连接"
+            SyncState.bandConnected -> "状态：手环已连接,等待 $name"
             else -> "状态：未连接（请启动同步服务）"
         }
     }
