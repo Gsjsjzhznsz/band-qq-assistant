@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import com.example.bandqq.R
+import com.example.bandqq.config.ConfigHolder
 import com.example.bandqq.config.ConfigManager
 import com.example.bandqq.onebot.OneBotClient
 import com.example.bandqq.onebot.OneBotListener
@@ -87,7 +88,17 @@ class SyncService : Service() {
         oneBot = OneBotClient(parser)
         val store = MessageStore(SyncPreferencesKv(this))
         StoreHolder.setStore(store)
-        broker = MessageBroker(parser, oneBot, store)
+        broker = MessageBroker(parser, oneBot, store) { s ->
+            val http = ConfigHolder.config.endpoint.httpUrl
+            oneBot.requestApi("get_friend_list", http) { raw ->
+                val list = ContactCache.parseContactResponse("private", raw)
+                if (list.isNotEmpty()) s.setCachedContacts(s.getCachedContacts().filter { it.type != "private" } + list)
+            }
+            oneBot.requestApi("get_group_list", http) { raw ->
+                val list = ContactCache.parseContactResponse("group", raw)
+                if (list.isNotEmpty()) s.setCachedContacts(s.getCachedContacts().filter { it.type != "group" } + list)
+            }
+        }
         oneBot.startWithListener(broker)
         InterconnectBridge.register(broker)
         InterconnectBridge.init(this)
