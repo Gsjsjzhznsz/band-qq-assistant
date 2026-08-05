@@ -68,19 +68,17 @@
     onInit() {
       this.$app.$def.on('conversations', () => this.loadConversations())
       this.$app.$def.on('visible_contacts', () => this.loadConversations())
+      this.$app.$def.on('state', () => this.refreshStatus())
     },
     onDestroy() {
       this.$app.$def.off('conversations')
       this.$app.$def.off('visible_contacts')
+      this.$app.$def.off('state')
     },
     async refreshStatus() {
-      const api = this.$app.$def.api
-      try {
-        const ok = await api.connectStatus()
-        this.statusText = ok ? '已连接' : '未连接'
-      } catch (e) {
-        this.statusText = '未连接'
-      }
+      const store = this.$app.$def.store
+      const s = store.getConnectState()
+      this.statusText = s && s.band ? '已连接' : '未连接'
     },
     async loadConversations() {
       const store = this.$app.$def.store

@@ -68,17 +68,20 @@
     onShow() {
       this.refreshStatus()
     },
+    onInit() {
+      this.$app.$def.on('state', () => this.refreshStatus())
+    },
+    onDestroy() {
+      this.$app.$def.off('state')
+    },
     goBack() {
       router.back()
     },
     async refreshStatus() {
-      const api = this.$app.$def.api
-      try {
-        const ok = await api.connectStatus()
-        this.statusText = ok ? '已连接' : '未连接'
-      } catch (e) {
-        this.statusText = '未连接'
-      }
+      const store = this.$app.$def.store
+      const s = store.getConnectState()
+      this.statusText = s && s.band ? '已连接' : '未连接'
+      this.napcatText = s ? (s.protocol ? '在线' : '离线') : '未知'
     },
     askClear() {
       this.confirmShow = true

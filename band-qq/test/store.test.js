@@ -105,4 +105,11 @@ describe('store', () => {
     assert.equal(convs.some((c) => c.id === '100' && c.is_temporary === false), true)
     assert.deepEqual(await store.getMessages('200'), [])
   })
+
+  it('setConnectState 保存并可读取 band/protocol', () => {
+    store.setConnectState({ type: 'connect_state', band: true, protocol: false })
+    const s = store.getConnectState()
+    assert.equal(s.band, true)
+    assert.equal(s.protocol, false)
+  })
 })

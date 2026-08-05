@@ -41,6 +41,7 @@ function handleMessage(msg) {
       }
       break
     case 'connect_state':
+      store.setConnectState(msg)
       emit('state', msg)
       break
     case 'visible_contacts':

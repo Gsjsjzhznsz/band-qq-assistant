@@ -46,6 +46,7 @@ export function createStore(storageImpl) {
   const cache = createStorageAdapter(storageImpl)
   let conversations = []
   let visibleContacts = []
+  let connectState = null
   const messagesByTarget = {}
 
   return {
@@ -132,6 +133,12 @@ export function createStore(storageImpl) {
     },
     async getVisibleContacts() {
       return visibleContacts
+    },
+    setConnectState(state) {
+      connectState = state || null
+    },
+    getConnectState() {
+      return connectState
     },
     isVisible(id) {
       return visibleContacts.some((c) => c.id === id)
