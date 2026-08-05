@@ -12,8 +12,8 @@
         <text class="row-value">{{statusText}}</text>
       </div>
       <div class="card row">
-        <text class="row-label">NapCat</text>
-        <text class="row-value">{{napcatText}}</text>
+        <text class="row-label">协议端</text>
+        <text class="row-value">{{protocolText}}</text>
       </div>
       <div class="card row">
         <text class="row-label">清空全部聊天记录</text>
@@ -62,7 +62,7 @@
   export default {
     private: {
       statusText: '未连接',
-      napcatText: '未知',
+      protocolText: '未知',
       confirmShow: false
     },
     onShow() {
@@ -81,7 +81,7 @@
       const store = this.$app.$def.store
       const s = store.getConnectState()
       this.statusText = s && s.band ? '已连接' : '未连接'
-      this.napcatText = s ? (s.protocol ? '在线' : '离线') : '未知'
+      this.protocolText = s ? (s.protocol ? '在线' : '离线') : '未知'
     },
     askClear() {
       this.confirmShow = true
