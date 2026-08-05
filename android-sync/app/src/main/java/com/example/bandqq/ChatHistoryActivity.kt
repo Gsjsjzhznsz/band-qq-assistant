@@ -6,7 +6,9 @@ import android.widget.SimpleAdapter
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.bandqq.sync.ConversationInfo
+import com.example.bandqq.sync.MessageStore
 import com.example.bandqq.sync.StoreHolder
+import com.example.bandqq.sync.SyncPreferencesKv
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -18,12 +20,20 @@ class ChatHistoryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_history)
+        ensureStore()
         setupList()
     }
 
     override fun onResume() {
         super.onResume()
+        ensureStore()
         setupList()
+    }
+
+    private fun ensureStore() {
+        if (StoreHolder.store == null) {
+            StoreHolder.setStore(MessageStore(SyncPreferencesKv(this)))
+        }
     }
 
     private fun setupList() {
