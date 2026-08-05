@@ -1,0 +1,33 @@
+package com.example.bandqq.sync
+
+import com.google.gson.JsonParser
+
+object ContactCache {
+
+    /** 解析 OneBot get_friend_list/get_group_list 响应为联系人列表 */
+    fun parseContactResponse(type: String, raw: String?): List<VisibleContact> {
+        if (raw == null) return emptyList()
+        val out = mutableListOf<VisibleContact>()
+        try {
+            val data = JsonParser.parseString(raw).asJsonObject.get("data") ?: return emptyList()
+            if (!data.isJsonArray) return emptyList()
+            val arr = data.asJsonArray
+            for (e in arr) {
+                val o = e.asJsonObject
+                val id: String
+                val name: String
+                if (type == "private") {
+                    id = o.get("user_id")?.asLong?.toString() ?: continue
+                    name = o.get("nickname")?.asString ?: id
+                } else {
+                    id = o.get("group_id")?.asLong?.toString() ?: continue
+                    name = o.get("group_name")?.asString ?: id
+                }
+                out.add(VisibleContact(id, type, name))
+            }
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        return out
+    }
+}
