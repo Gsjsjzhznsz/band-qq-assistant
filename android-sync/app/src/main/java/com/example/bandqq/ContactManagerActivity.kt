@@ -42,13 +42,23 @@ class ContactManagerActivity : AppCompatActivity() {
         findViewById<View>(R.id.friendTab).setOnClickListener { loadTab("private") }
         findViewById<View>(R.id.groupTab).setOnClickListener { loadTab("group") }
         findViewById<View>(R.id.saveContactsBtn).setOnClickListener { saveSelection() }
+        findViewById<View>(R.id.refreshContactsBtn).setOnClickListener { loadContacts() }
 
+        loadCachedIntoCurrentTab()
         loadContacts()
     }
 
     override fun onResume() {
         super.onResume()
+        loadCachedIntoCurrentTab()
         loadContacts()
+    }
+
+    private fun loadCachedIntoCurrentTab() {
+        val cached = StoreHolder.store?.getCachedContacts() ?: return
+        if (currentType == "private") friends = cached.filter { it.type == "private" }.toMutableList()
+        else groups = cached.filter { it.type == "group" }.toMutableList()
+        refreshCurrentTab()
     }
 
     private fun loadContacts() {
@@ -60,6 +70,11 @@ class ContactManagerActivity : AppCompatActivity() {
     private fun applyList(type: String, raw: String?) {
         val rows = parseContacts(type, raw)
         if (type == "private") friends = rows else groups = rows
+        val store = StoreHolder.store
+        if (store != null) {
+            val cached = store.getCachedContacts().filter { it.type != type }
+            store.setCachedContacts(cached + rows)
+        }
         refreshCurrentTab()
     }
 
