@@ -120,6 +120,40 @@ class MessageBrokerTest {
         broker.onState(false)
         assertTrue(out[1].contains("\"protocol\":false"))
     }
+
+    @Test
+    fun `onState 连接成功时触发自动拉取`() {
+        var fetched = false
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore()) {
+            fetched = true
+        }
+        broker.autoFetchDone = false
+        broker.onState(true)
+        assertTrue(fetched)
+    }
+
+    @Test
+    fun `onState 断开时不触发自动拉取`() {
+        var fetched = false
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore()) {
+            fetched = true
+        }
+        broker.autoFetchDone = false
+        broker.onState(false)
+        assertTrue(!fetched)
+    }
+
+    @Test
+    fun `autoFetchDone 为真时不再触发`() {
+        var count = 0
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore()) {
+            count++
+        }
+        broker.autoFetchDone = true
+        broker.onState(true)
+        broker.onState(true)
+        assertEquals(0, count)
+    }
 }
 
 class FakeOneBot(private val onSend: (String, String, String) -> Boolean) : MessageSender {

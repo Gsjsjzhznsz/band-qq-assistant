@@ -17,8 +17,11 @@ interface MessageSender {
 class MessageBroker(
     private val parser: OneBotParser,
     private val oneBot: MessageSender,
-    private val store: MessageStore
+    private val store: MessageStore,
+    private val autoFetch: ((MessageStore) -> Unit)? = null
 ) : com.example.bandqq.onebot.OneBotListener {
+
+    var autoFetchDone = false
 
     var bandSender: (String) -> Unit = {}
 
@@ -84,5 +87,13 @@ class MessageBroker(
     override fun onState(connected: Boolean) {
         SyncState.oneBotConnected = connected
         bandSender(SyncStatePush.buildFrame())
+        if (connected && !autoFetchDone) {
+            autoFetchDone = true
+            tryAutoFetch()
+        }
+    }
+
+    private fun tryAutoFetch() {
+        autoFetch?.invoke(store)
     }
 }
