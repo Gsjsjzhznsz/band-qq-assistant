@@ -144,7 +144,7 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
                 ConversationInfo(
                     id = id,
                     type = last.messageType,
-                    name = last.senderName.ifBlank { id },
+                    name = conversationName(id, last.messageType, last.senderName),
                     lastMsg = last.content,
                     time = last.time
                 )
@@ -152,6 +152,17 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
         }
         out.sortByDescending { it.time }
         return out.subList(0, out.size.coerceAtMost(MAX_CONVERSATIONS))
+    }
+
+    /**
+     * 解析会话显示名：群会话优先用缓存的群名，找不到才用发送者名；私聊用发送者名。
+     */
+    fun conversationName(targetId: String, messageType: String, fallback: String): String {
+        if (messageType == "group") {
+            val cached = cachedContacts.firstOrNull { it.type == "group" && it.id == targetId }
+            if (cached != null && cached.name.isNotBlank()) return cached.name
+        }
+        return fallback.ifBlank { targetId }
     }
 
     fun clearHistory(targetId: String) {

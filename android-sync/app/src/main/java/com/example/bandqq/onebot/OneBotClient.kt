@@ -50,6 +50,11 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         this.listener = listener
     }
 
+    /** 仅更新 HTTP/WS 端点配置（含 token），不建立连接。用于界面侧手动拉取联系人。 */
+    fun configure(endpoint: EndpointConfig) {
+        this.config = endpoint
+    }
+
     fun stop() {
         reconnectJob?.cancel()
         scope.cancel()

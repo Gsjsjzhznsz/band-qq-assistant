@@ -93,8 +93,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.probeBtn.setOnClickListener { probe() }
-
         binding.testBtn.setOnClickListener { testConnection() }
 
         binding.startBtn.setOnClickListener {
@@ -132,29 +130,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 .setNegativeButton("取消", null)
                 .show()
-        }
-    }
-
-    private fun probe() {
-        scope.launch {
-            binding.statusText.text = "状态：正在局域网探测 SnowLuma..."
-            val detected = GameProtocolDetector.detect()
-            if (detected != null) {
-                binding.wsInput.setText(detected.wsUrl)
-                binding.httpInput.setText(detected.httpUrl)
-                // 保留用户已填的 token,不覆盖
-                val cfg = ConfigHolder.config.copy(
-                    endpoint = detected.copy(
-                        wsToken = binding.wsTokenInput.text.toString().trim(),
-                        httpToken = binding.httpTokenInput.text.toString().trim()
-                    )
-                )
-                configManager.save(cfg)
-                binding.statusText.text = "状态：SnowLuma 在线（${detected.httpUrl}）"
-                toast("已探测到 SnowLuma,配置已保存")
-            } else {
-                binding.statusText.text = "状态：未检测到 SnowLuma,请检查协议端是否已启动"
-            }
         }
     }
 

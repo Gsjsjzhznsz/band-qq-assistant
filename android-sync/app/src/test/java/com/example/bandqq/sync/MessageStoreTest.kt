@@ -145,4 +145,29 @@ class MessageStoreTest {
         val store = MessageStore(kv)
         assertEquals(emptyList<VisibleContact>(), store.getCachedContacts())
     }
+
+    @Test
+    fun `群会话名使用缓存群名而非发送者名`() {
+        val store = MessageStore()
+        store.setCachedContacts(listOf(VisibleContact("123", "group", "技术交流群")))
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val convs = store.getConversations()
+        assertEquals("技术交流群", convs[0].name)
+    }
+
+    @Test
+    fun `无缓存时群会话名回退为发送者名`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val convs = store.getConversations()
+        assertEquals("张三", convs[0].name)
+    }
+
+    @Test
+    fun `私聊会话名回退为发送者名`() {
+        val store = MessageStore()
+        store.addMessage("555", StoredMessage("private", "456", "李四", "你好", 1720000000L))
+        val convs = store.getConversations()
+        assertEquals("李四", convs[0].name)
+    }
 }

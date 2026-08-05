@@ -67,7 +67,7 @@ class OneBotParser {
         return sb.toString()
     }
 
-    fun toHandBandFrame(msg: OneBotMessage, visible: Boolean = true): String {
+    fun toHandBandFrame(msg: OneBotMessage, visible: Boolean = true, targetName: String = msg.senderName): String {
         val obj = JsonObject()
         obj.addProperty("type", "push_message")
         obj.addProperty("seq", 0)
@@ -75,6 +75,7 @@ class OneBotParser {
         obj.addProperty("target_id", msg.targetId)
         obj.addProperty("sender_id", msg.senderId)
         obj.addProperty("sender_name", msg.senderName)
+        obj.addProperty("target_name", targetName)
         obj.addProperty("content", msg.content)
         obj.addProperty("time", msg.time)
         obj.addProperty("is_self", msg.isSelf)

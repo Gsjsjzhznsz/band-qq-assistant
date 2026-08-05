@@ -59,6 +59,10 @@ class MessageBroker(
                 bandSender(store.buildVisibleContactsFrame(seq))
                 return true
             }
+            "get_connect_state" -> {
+                bandSender(SyncStatePush.buildFrame())
+                return true
+            }
             else -> return false
         }
     }
@@ -76,7 +80,8 @@ class MessageBroker(
             )
         )
         val visible = store.isVisibleContact(msg.targetId)
-        return parser.toHandBandFrame(msg, visible)
+        val targetName = store.conversationName(msg.targetId, msg.messageType, msg.senderName)
+        return parser.toHandBandFrame(msg, visible, targetName)
     }
 
     override fun onEvent(message: OneBotMessage) {

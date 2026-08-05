@@ -73,13 +73,16 @@ class ContactManagerActivity : AppCompatActivity() {
 
     private fun loadContacts() {
         val http = ConfigHolder.config.endpoint.httpUrl
+        client.configure(ConfigHolder.config.endpoint)
         client.requestApi("get_friend_list", http) { raw -> runOnUiThread { applyList("private", raw) } }
         client.requestApi("get_group_list", http) { raw -> runOnUiThread { applyList("group", raw) } }
     }
 
     private fun applyList(type: String, raw: String?) {
         val rows = parseContacts(type, raw)
-        if (type == "private") friends = rows else groups = rows
+        if (rows.isNotEmpty()) {
+            if (type == "private") friends = rows else groups = rows
+        }
         val store = StoreHolder.store
         if (store != null && rows.isNotEmpty()) {
             val cached = store.getCachedContacts().filter { it.type != type }

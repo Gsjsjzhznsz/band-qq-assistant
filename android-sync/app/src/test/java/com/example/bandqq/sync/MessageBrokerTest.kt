@@ -68,6 +68,42 @@ class MessageBrokerTest {
     }
 
     @Test
+    fun `群消息 push_message 帧带缓存群名 target_name`() {
+        val store = MessageStore()
+        store.setCachedContacts(listOf(VisibleContact("123", "group", "技术交流群")))
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, store)
+        val frame = broker.handleOneBotEvent(
+            OneBotMessage("group", "123", "456", "张三", "你好", 1700000000L)
+        )
+        assertTrue(frame!!.contains("\"target_name\":\"技术交流群\""))
+    }
+
+    @Test
+    fun `群消息无缓存时 target_name 回退为发送者名`() {
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+        val frame = broker.handleOneBotEvent(
+            OneBotMessage("group", "123", "456", "张三", "你好", 1700000000L)
+        )
+        assertTrue(frame!!.contains("\"target_name\":\"张三\""))
+    }
+
+    @Test
+    fun `get_connect_state 返回 connect_state 帧`() {
+        SyncState.bandConnected = true
+        SyncState.oneBotConnected = true
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+        val out = mutableListOf<String>()
+        broker.bandSender = { out.add(it) }
+        val handled = broker.onBandFrame("""{"type":"get_connect_state","seq":1}""")
+        assertTrue(handled)
+        assertTrue(out[0].contains("\"type\":\"connect_state\""))
+        assertTrue(out[0].contains("\"band\":true"))
+        assertTrue(out[0].contains("\"protocol\":true"))
+        SyncState.bandConnected = false
+        SyncState.oneBotConnected = false
+    }
+
+    @Test
     fun `未知手环帧返回 false`() {
         val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
         val frame = broker.handleOneBotEvent(OneBotMessage("group", "1", "2", "n", "x", 0))
