@@ -1,6 +1,5 @@
 package com.example.bandqq.onebot
 
-import com.example.bandqq.config.ProtocolType
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -28,10 +27,9 @@ class GameProtocolDetectorTest {
     }
 
     @Test
-    fun `detect NapCat 命中标准端点并回填配置`() = runBlocking {
-        server.enqueue(MockResponse().setBody("""{"status":"ok","data":{"msg":"NapCat"}}"""))
+    fun `detect 命中标准 HTTP 端点并回填配置,token 为空`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"status":"ok","data":{"msg":"SnowLuma"}}"""))
         val cfg = GameProtocolDetector.detect(
-            type = ProtocolType.NAPCAT,
             preferred = server.url("/").toString().trimEnd('/'),
             hosts = listOf("127.0.0.1"),
             ports = intArrayOf()
@@ -39,13 +37,14 @@ class GameProtocolDetectorTest {
         assertNotNull(cfg)
         assertTrue(cfg!!.httpUrl.startsWith("http://127.0.0.1:"))
         assertTrue(cfg.wsUrl.startsWith("ws://127.0.0.1:"))
+        assertEquals("", cfg.wsToken)
+        assertEquals("", cfg.httpToken)
     }
 
     @Test
-    fun `detect NapCat 对非 JSON 响应返回 null`() = runBlocking {
+    fun `detect 对非 JSON 响应返回 null`() = runBlocking {
         server.enqueue(MockResponse().setBody("<html>404</html>"))
         val cfg = GameProtocolDetector.detect(
-            type = ProtocolType.NAPCAT,
             preferred = server.url("/").toString().trimEnd('/'),
             hosts = listOf("127.0.0.1"),
             ports = intArrayOf()
@@ -54,11 +53,10 @@ class GameProtocolDetectorTest {
     }
 
     @Test
-    fun `非 3000 端口保持 http ws 同端口`() = runBlocking {
+    fun `HTTP 非 3000 端口时 ws 保持同端口`() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"status":"ok","data":{"msg":"ok"}}"""))
         val httpPort = server.port
         val cfg = GameProtocolDetector.detect(
-            type = ProtocolType.NAPCAT,
             preferred = "http://127.0.0.1:$httpPort",
             hosts = listOf("127.0.0.1"),
             ports = intArrayOf()
@@ -69,24 +67,20 @@ class GameProtocolDetectorTest {
     }
 
     @Test
-    fun `detect SnowLuma 命中 WS 3001 并回填`() = runBlocking {
+    fun `WS 端点无真实服务时预握手失败返回 null 而非抛异常`() = runBlocking {
         val cfg = GameProtocolDetector.detect(
-            type = ProtocolType.SNOWLUMA,
             preferred = "ws://127.0.0.1:${server.port}",
             hosts = listOf("127.0.0.1"),
             ports = intArrayOf()
         )
-        // MockWebServer 不做 WS 升级,预握手失败后应回退为 null 而非抛异常
         assertNull("无真实 WS 服务的端点不应误判", cfg)
     }
 
     @Test
-    fun `defaultPorts 分别覆盖两端默认端口`() {
-        val napPorts = GameProtocolDetector.defaultPorts(ProtocolType.NAPCAT).toList()
-        assertTrue(napPorts.contains(3000))
-        assertTrue(napPorts.contains(6099))
-        val snowPorts = GameProtocolDetector.defaultPorts(ProtocolType.SNOWLUMA).toList()
-        assertTrue(snowPorts.contains(3001))
-        assertTrue(snowPorts.contains(5099))
+    fun `defaultPorts 覆盖 WS 3001 与常见 HTTP 端口`() {
+        val ports = GameProtocolDetector.defaultPorts().toList()
+        assertTrue(ports.contains(3001))
+        assertTrue(ports.contains(3000))
+        assertTrue(ports.contains(8080))
     }
 }

@@ -1,14 +1,12 @@
 package com.example.bandqq.onebot
 
 import com.example.bandqq.config.EndpointConfig
-import com.example.bandqq.config.ProtocolType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -20,13 +18,6 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.concurrent.TimeUnit
 
-/**
- * 通用协议端探测：
- *  - 扫描 loopback + 局域网子网中配置的默认端口
- *  - 按协议类型生成候选配置（NapCat: HTTP 3000/6099/...; SnowLuma: WS 3001/5099）
- *  - 判定条件：HTTP `GET /api/get_version` 返回 JSON（NapCat 与 SnowLuma 均实现 OB11 协议）；
- *    SnowLuma 额外尝试 WebSocket 握手（避免部分部署无 HTTP 端点时漏检）。
- */
 object GameProtocolDetector {
 
     private val client = OkHttpClient.Builder()
@@ -40,16 +31,12 @@ object GameProtocolDetector {
         .pingInterval(0, TimeUnit.SECONDS)
         .build()
 
-    fun defaultPorts(type: ProtocolType): IntArray = when (type) {
-        ProtocolType.NAPCAT -> intArrayOf(3000, 6099, 3001, 5700, 8080, 3002)
-        ProtocolType.SNOWLUMA -> intArrayOf(3001, 5099)
-    }
+    fun defaultPorts(): IntArray = intArrayOf(3001, 3000, 8080, 3005, 5000)
 
     suspend fun detect(
-        type: ProtocolType,
         preferred: String? = null,
         hosts: List<String> = detectHosts(),
-        ports: IntArray = defaultPorts(type)
+        ports: IntArray = defaultPorts()
     ): EndpointConfig? {
         val preferredUrl = preferred?.trim()?.ifBlank { null }
         val candidates = mutableListOf<String>()
@@ -67,29 +54,26 @@ object GameProtocolDetector {
             val sem = Semaphore(24)
             val results = candidates.map { url ->
                 async(Dispatchers.IO) {
-                    sem.withPermit { if (isProtocol(type, url)) url else null }
+                    sem.withPermit { if (isProtocol(url)) url else null }
                 }
             }.awaitAll().filterNotNull()
 
             if (preferredUrl != null && results.contains(preferredUrl)) {
-                toConfig(type, preferredUrl)
+                toConfig(preferredUrl)
             } else {
-                results.firstOrNull()?.let { toConfig(type, it) }
+                results.firstOrNull()?.let { toConfig(it) }
             }
         }
     }
 
-    private fun isProtocol(type: ProtocolType, base: String): Boolean {
+    private fun isProtocol(base: String): Boolean {
         if (base.startsWith("ws://") || base.startsWith("wss://")) {
             return probeWs(base)
         }
         if (httpProbe(base)) return true
-        // SnowLuma 无 HTTP 端点时,尝试把 http 换成 ws 握手
-        if (type == ProtocolType.SNOWLUMA) {
-            val wsUrl = base.replaceFirst("http://", "ws://").replaceFirst("https://", "wss://")
-            if (wsUrl != base && probeWs(wsUrl)) return true
-        }
-        return false
+        // 无 HTTP 端点时,尝试把 http 换成 ws 握手
+        val wsUrl = base.replaceFirst("http://", "ws://").replaceFirst("https://", "wss://")
+        return wsUrl != base && probeWs(wsUrl)
     }
 
     private fun httpProbe(httpBase: String): Boolean = try {
@@ -140,25 +124,21 @@ object GameProtocolDetector {
         return result[0]
     }
 
-    private fun toConfig(type: ProtocolType, base: String): EndpointConfig {
+    private fun toConfig(base: String): EndpointConfig {
         if (base.startsWith("ws://") || base.startsWith("wss://")) {
-            return EndpointConfig(wsUrl = base, httpUrl = base, token = "")
+            return EndpointConfig(wsUrl = base, wsToken = "", httpUrl = base, httpToken = "")
         }
         val trimmed = base.trim()
         return try {
             val isHttps = trimmed.lowercase().startsWith("https://")
             val scheme = if (isHttps) "wss" else "ws"
             val m = Regex("""^https?://([^:/]+)(?::(\d+))?""").find(trimmed)
-            if (m == null) return EndpointConfig(wsUrl = trimmed, httpUrl = base, token = "")
+            if (m == null) return EndpointConfig(wsUrl = trimmed, wsToken = "", httpUrl = base, httpToken = "")
             val host = m.groupValues[1]
             val httpPort = m.groupValues[2].ifBlank { if (isHttps) "443" else "80" }.toInt()
-            val wsPort = when {
-                type == ProtocolType.NAPCAT && httpPort == 3000 -> 3001
-                else -> httpPort
-            }
-            EndpointConfig(wsUrl = "$scheme://$host:$wsPort", httpUrl = base, token = "")
+            EndpointConfig(wsUrl = "$scheme://$host:$httpPort", wsToken = "", httpUrl = base, httpToken = "")
         } catch (e: Exception) {
-            EndpointConfig(wsUrl = trimmed, httpUrl = base, token = "")
+            EndpointConfig(wsUrl = trimmed, wsToken = "", httpUrl = base, httpToken = "")
         }
     }
 
