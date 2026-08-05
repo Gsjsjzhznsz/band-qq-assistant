@@ -26,6 +26,9 @@ function emit(event, data) {
 function handleMessage(msg) {
   if (!msg || !msg.type) return
   switch (msg.type) {
+    case 'ping':
+      api.send({ type: 'pong', seq: msg.seq || 0 })
+      break
     case 'push_message':
       store.upsertMessage(msg)
       emit('message', msg)
@@ -76,6 +79,12 @@ export default {
     if (idx >= 0) set.splice(idx, 1)
   },
   onCreate() {
-    api.init({ onMessage: handleMessage })
+    api.init({
+      onMessage: handleMessage,
+      onOpen: () => {
+        api.send({ type: 'band_state', state: 'connected', seq: 0 })
+        api.send({ type: 'get_connect_state', seq: 0 })
+      }
+    })
   }
 }

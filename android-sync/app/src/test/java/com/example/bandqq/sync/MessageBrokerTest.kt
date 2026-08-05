@@ -104,6 +104,26 @@ class MessageBrokerTest {
     }
 
     @Test
+    fun `pong 帧触发 onBandPong 回调`() {
+        var ponged = false
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+        broker.onBandPong = { ponged = true }
+        val handled = broker.onBandFrame("""{"type":"pong","seq":0}""")
+        assertTrue(handled)
+        assertTrue(ponged)
+    }
+
+    @Test
+    fun `band_state 帧触发 onBandPong 回调`() {
+        var ponged = false
+        val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+        broker.onBandPong = { ponged = true }
+        val handled = broker.onBandFrame("""{"type":"band_state","state":"connected","seq":0}""")
+        assertTrue(handled)
+        assertTrue(ponged)
+    }
+
+    @Test
     fun `未知手环帧返回 false`() {
         val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
         val frame = broker.handleOneBotEvent(OneBotMessage("group", "1", "2", "n", "x", 0))

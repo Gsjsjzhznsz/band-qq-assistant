@@ -9,6 +9,13 @@ import com.xiaomi.xms.wearable.message.MessageApi
 import com.xiaomi.xms.wearable.message.OnMessageReceivedListener
 import com.xiaomi.xms.wearable.node.Node
 import com.xiaomi.xms.wearable.node.NodeApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.nio.charset.StandardCharsets
 
 /**
@@ -27,6 +34,9 @@ object InterconnectBridge {
     /** 手环端 manifest 路由，用于 launchWearApp 拉起入口页 */
     const val WEAR_ENTRY_ROUTE = "/pages/index"
 
+    private const val PING_INTERVAL_MS = 3000L
+    private const val TIMEOUT_MS = 10000L
+
     private var broker: MessageBroker? = null
     private var context: Context? = null
 
@@ -38,8 +48,14 @@ object InterconnectBridge {
     private var currentNode: Node? = null
 
     @Volatile
+    private var lastPongMs: Long = 0L
+
+    @Volatile
     var available: Boolean = false
         private set
+
+    private val heartbeatScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var heartbeatJob: Job? = null
 
     private val messageListener = OnMessageReceivedListener { _, data ->
         try {
@@ -54,11 +70,13 @@ object InterconnectBridge {
     fun register(broker: MessageBroker) {
         this.broker = broker
         broker.bandSender = { frame -> sendToBand(frame) }
+        broker.onBandPong = { onPong() }
         SyncState.bandConnected = false
     }
 
     fun unregister(broker: MessageBroker) {
         if (this.broker === broker) this.broker = null
+        stopHeartbeat()
         release()
     }
 
@@ -150,13 +168,13 @@ object InterconnectBridge {
         messageApi.addListener(node.id, messageListener)
             .addOnSuccessListener {
                 Log.d(TAG, "registerListener ok")
-                onConnect()
+                startHeartbeat()
             }
             .addOnFailureListener { error ->
                 val msg = error.message.orEmpty()
                 if (msg.contains("You have registered", ignoreCase = true)) {
                     Log.w(TAG, "listener already registered, continue")
-                    onConnect()
+                    startHeartbeat()
                 } else {
                     Log.e(TAG, "registerListener failed", error)
                     SyncState.bandConnected = false
@@ -165,14 +183,53 @@ object InterconnectBridge {
             }
     }
 
-    /** 将同步器产生的 JSON 帧发送到已连接的手环 */
+    /**
+     * 将同步器产生的 JSON 帧发送到已连接的手环。
+     * 不依赖 bandConnected（心跳 ping 需在未确认前也能发送），仅要求已发现节点。
+     */
     fun sendToBand(frame: String) {
         val node = currentNode ?: return
         val messageApi = messageApi ?: return
-        if (!SyncState.bandConnected) return
         messageApi.sendMessage(node.id, frame.toByteArray(StandardCharsets.UTF_8))
             .addOnSuccessListener { Log.d(TAG, "sendToBand ok") }
             .addOnFailureListener { e -> Log.e(TAG, "sendToBand failed", e) }
+    }
+
+    /** 收到手环 pong：确认真实在线并重置超时计时。 */
+    private fun onPong() {
+        lastPongMs = System.currentTimeMillis()
+        if (!SyncState.bandConnected) {
+            onConnect()
+        }
+    }
+
+    /** 启动心跳：立即发一次 ping，随后周期性 ping 并检查超时。 */
+    private fun startHeartbeat() {
+        stopHeartbeat()
+        lastPongMs = System.currentTimeMillis()
+        heartbeatJob = heartbeatScope.launch {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                if (now - lastPongMs > TIMEOUT_MS) {
+                    onDisconnect()
+                } else {
+                    sendPing()
+                }
+                delay(PING_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+    }
+
+    private fun sendPing() {
+        val b = broker
+        if (b != null) {
+            sendToBand("""{"type":"ping","seq":0}""")
+        }
     }
 
     /** 手环消息回调：由 SDK 在收到手环帧时调用 */
@@ -188,12 +245,16 @@ object InterconnectBridge {
     }
 
     fun onDisconnect() {
+        val wasConnected = SyncState.bandConnected
         SyncState.bandConnected = false
         BandStateBus.notify(false)
-        broker?.bandSender?.invoke(SyncStatePush.buildFrame())
+        if (wasConnected) {
+            broker?.bandSender?.invoke(SyncStatePush.buildFrame())
+        }
     }
 
     fun release() {
+        stopHeartbeat()
         val node = currentNode
         val messageApi = messageApi
         if (node != null && messageApi != null) {

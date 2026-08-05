@@ -25,6 +25,9 @@ class MessageBroker(
 
     var bandSender: (String) -> Unit = {}
 
+    /** 手环 pong 心跳应答回调，由互联层在收到 pong 时调用以确认手环在线。 */
+    var onBandPong: () -> Unit = {}
+
     fun onBandFrame(json: String): Boolean {
         val obj = try {
             JsonParser.parseString(json).asJsonObject
@@ -34,6 +37,14 @@ class MessageBroker(
         val type = obj.get("type")?.asString ?: return false
         val seq = obj.get("seq")?.asInt ?: 0
         when (type) {
+            "pong" -> {
+                onBandPong()
+                return true
+            }
+            "band_state" -> {
+                onBandPong()
+                return true
+            }
             "send_message" -> {
                 val messageType = obj.get("message_type")?.asString ?: "private"
                 val targetId = obj.get("target_id")?.asString ?: return false
