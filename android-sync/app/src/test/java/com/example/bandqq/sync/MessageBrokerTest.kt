@@ -115,7 +115,10 @@ class MessageBrokerTest {
         broker.onState(true)
         assertTrue(out[0].contains("\"type\":\"connect_state\""))
         assertTrue(out[0].contains("\"band\":true"))
-        assertTrue(out[0].contains("\"protocol\":false"))
+        assertTrue(out[0].contains("\"protocol\":true"))
+        SyncState.oneBotConnected = true
+        broker.onState(false)
+        assertTrue(out[1].contains("\"protocol\":false"))
     }
 }
 

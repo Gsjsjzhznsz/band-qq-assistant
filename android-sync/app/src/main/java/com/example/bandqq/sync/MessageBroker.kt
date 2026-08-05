@@ -82,6 +82,7 @@ class MessageBroker(
     }
 
     override fun onState(connected: Boolean) {
+        SyncState.oneBotConnected = connected
         bandSender(SyncStatePush.buildFrame())
     }
 }

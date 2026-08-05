@@ -172,9 +172,11 @@ class MainActivity : AppCompatActivity() {
                     binding.snowWsInput.setText(detected.wsUrl)
                     binding.snowHttpInput.setText(detected.httpUrl)
                 }
+                val token = if (type == ProtocolType.NAPCAT) binding.tokenInput.text.toString().trim() else binding.snowTokenInput.text.toString().trim()
+                val savedEndpoint = detected.copy(token = token)
                 val cfg = ConfigHolder.config.copy(
-                    napcat = if (type == ProtocolType.NAPCAT) detected else ConfigHolder.config.napcat,
-                    snowluma = if (type == ProtocolType.SNOWLUMA) detected else ConfigHolder.config.snowluma
+                    napcat = if (type == ProtocolType.NAPCAT) savedEndpoint else ConfigHolder.config.napcat,
+                    snowluma = if (type == ProtocolType.SNOWLUMA) savedEndpoint else ConfigHolder.config.snowluma
                 )
                 configManager.save(cfg)
                 binding.statusText.text = "状态：$name 在线（${detected.httpUrl}）"
