@@ -79,12 +79,21 @@ export default {
     if (idx >= 0) set.splice(idx, 1)
   },
   onCreate() {
+    store.init()
+    const pullAll = () => {
+      api.send(protocol.getConnectState())
+      api.send(protocol.getVisibleContacts())
+      api.send(protocol.getConversations())
+    }
     api.init({
       onMessage: handleMessage,
       onOpen: () => {
         api.send({ type: 'band_state', state: 'connected', seq: 0 })
-        api.send({ type: 'get_connect_state', seq: 0 })
+        pullAll()
       }
     })
+    api.send(protocol.getConnectState())
+    api.send(protocol.getVisibleContacts())
+    api.send(protocol.getConversations())
   }
 }
