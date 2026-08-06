@@ -57,7 +57,15 @@ export function createStore(storageImpl) {
       try { visibleContacts = JSON.parse(visibleRaw) } catch (e) { visibleContacts = [] }
     },
     async setConversations(list) {
-      conversations = Array.isArray(list) ? list.map((c) => ({ ...c, name: stripEmoji(c.name || '') })) : []
+      const incoming = Array.isArray(list) ? list.map((c) => ({ ...c, name: stripEmoji(c.name || '') })) : []
+      let merged = incoming.slice()
+      const byId = new Map(merged.map((c) => [c.id, c]))
+      for (const vc of visibleContacts) {
+        if (!byId.has(vc.id)) {
+          merged.push({ id: vc.id, type: vc.type, name: vc.name, last_msg: '', time: 0, is_temporary: false })
+        }
+      }
+      conversations = merged
       const slice = conversations.slice(0, CACHE_CONVERSATIONS)
       await cache.set(CONV_KEY, JSON.stringify(slice))
     },

@@ -151,6 +151,12 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
             )
         }
         out.sortByDescending { it.time }
+        val hasMessages = out.map { it.id }.toSet()
+        for (c in visibleContacts) {
+            if (c.id !in hasMessages) {
+                out.add(ConversationInfo(id = c.id, type = c.type, name = c.name, lastMsg = "", time = 0L))
+            }
+        }
         return out.subList(0, out.size.coerceAtMost(MAX_CONVERSATIONS))
     }
 

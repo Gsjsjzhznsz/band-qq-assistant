@@ -170,4 +170,34 @@ class MessageStoreTest {
         val convs = store.getConversations()
         assertEquals("李四", convs[0].name)
     }
+
+    @Test
+    fun `可见联系人无消息也出现在会话列表`() {
+        val store = MessageStore()
+        store.setVisibleContacts(listOf(VisibleContact("111", "private", "小明"), VisibleContact("222", "group", "群A")))
+        val convs = store.getConversations()
+        assertEquals(2, convs.size)
+        assertTrue(convs.any { it.id == "111" && it.name == "小明" })
+        assertTrue(convs.any { it.id == "222" && it.name == "群A" })
+    }
+
+    @Test
+    fun `可见联系人已收消息不重复出现`() {
+        val store = MessageStore()
+        store.setVisibleContacts(listOf(VisibleContact("123", "group", "技术交流群")))
+        store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
+        val convs = store.getConversations()
+        assertEquals(1, convs.size)
+        assertEquals("123", convs[0].id)
+        assertEquals("你好", convs[0].lastMsg)
+    }
+
+    @Test
+    fun `conversation_list 帧包含无消息可见联系人`() {
+        val store = MessageStore()
+        store.setVisibleContacts(listOf(VisibleContact("111", "private", "小明")))
+        val frame = store.buildConversationFrame(3)
+        assertTrue(frame.contains("\"id\":\"111\""))
+        assertTrue(frame.contains("\"name\":\"小明\""))
+    }
 }

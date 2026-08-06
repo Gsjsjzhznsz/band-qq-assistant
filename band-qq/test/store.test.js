@@ -106,6 +106,31 @@ describe('store', () => {
     assert.deepEqual(await store.getMessages('200'), [])
   })
 
+  it('空 conversation_list 不清空可见联系人骨架', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }])
+    await store.setConversations([])
+    const convs = await store.getConversations()
+    assert.equal(convs.length, 1)
+    assert.equal(convs[0].id, '100')
+    assert.equal(convs[0].name, '小明')
+  })
+
+  it('conversation_list 后到不覆盖可见联系人骨架', async () => {
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }, { id: '101', type: 'group', name: '群' }])
+    await store.setConversations([{ id: '101', type: 'group', name: '群', last_msg: 'x', time: 1700000000 }])
+    const convs = await store.getConversations()
+    assert.equal(convs.some((c) => c.id === '100'), true)
+    assert.equal(convs.some((c) => c.id === '101'), true)
+  })
+
+  it('先会话后联系人仍保留骨架', async () => {
+    await store.setConversations([{ id: '101', type: 'group', name: '群', last_msg: 'x', time: 1700000000 }])
+    await store.setVisibleContacts([{ id: '100', type: 'private', name: '小明' }, { id: '101', type: 'group', name: '群' }])
+    const convs = await store.getConversations()
+    assert.equal(convs.some((c) => c.id === '100'), true)
+    assert.equal(convs.some((c) => c.id === '101'), true)
+  })
+
   it('setConnectState 保存并可读取 band/protocol', () => {
     store.setConnectState({ type: 'connect_state', band: true, protocol: false })
     const s = store.getConnectState()
