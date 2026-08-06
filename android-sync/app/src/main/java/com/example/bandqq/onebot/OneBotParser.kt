@@ -16,6 +16,14 @@ data class OneBotMessage(
 
 class OneBotParser {
 
+    companion object {
+        private val EMOJI = Regex("\\p{So}|\\p{Sk}|[\\x{2600}-\\x{27BF}\\x{2B00}-\\x{2BFF}\\x{1F000}-\\x{1FAFF}\\x{FE0F}\\x{200D}]")
+
+        fun stripEmoji(s: String): String = s.replace(EMOJI, "")
+
+        fun markEmoji(s: String): String = s.replace(EMOJI, "[表情]")
+    }
+
     fun parseMessageEvent(json: String): OneBotMessage? {
         val obj = try {
             JsonParser.parseString(json).asJsonObject
@@ -38,7 +46,7 @@ class OneBotParser {
             messageType = messageType,
             targetId = targetId,
             senderId = senderId,
-            senderName = sender?.get("nickname")?.asString ?: senderId,
+            senderName = stripEmoji(sender?.get("nickname")?.asString ?: senderId),
             content = content,
             time = obj.get("time")?.asLong ?: 0L,
             isSelf = selfId != null && senderId == selfId
@@ -56,8 +64,9 @@ class OneBotParser {
             when (seg.get("type")?.asString) {
                 "text" -> {
                     val text = seg.getAsJsonObject("data")?.get("text")?.asString ?: ""
-                    sb.append(text)
+                    sb.append(markEmoji(text))
                 }
+                "face" -> sb.append("[表情]")
                 "image" -> sb.append("[图片]")
                 "record", "voice" -> sb.append("[语音]")
                 "video" -> sb.append("[视频]")

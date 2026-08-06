@@ -83,4 +83,38 @@ class OneBotParserTest {
         val body = parser.buildSendRequest("group", "123", "收到")
         assertEquals("""{"action":"send_group_msg","params":{"group_id":123,"message":"收到"}}""", body)
     }
+
+    @Test
+    fun `文本内的 emoji 降级为表情`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"张三"},"message":[{"type":"text","data":{"text":"早😊好"}}],
+             "time":1700000000,"self_id":1,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("早[表情]好", msg?.content)
+    }
+
+    @Test
+    fun `表情包段降级为表情而不落到其他`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"张三"},"message":[{"type":"face","data":{"id":"178"}},
+                        {"type":"text","data":{"text":"了"}}],
+             "time":1700000000,"self_id":1,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("[表情]了", msg?.content)
+    }
+
+    @Test
+    fun `昵称中的 emoji 被剔除`() {
+        val json = """
+            {"post_type":"message","message_type":"group","group_id":"123","user_id":"456",
+             "sender":{"nickname":"🌟阿杰"},"message":[{"type":"text","data":{"text":"hi"}}],
+             "time":1700000000,"self_id":1,"message_id":2}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals("阿杰", msg?.senderName)
+    }
 }

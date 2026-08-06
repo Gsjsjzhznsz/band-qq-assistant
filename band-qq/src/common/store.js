@@ -1,4 +1,4 @@
-import { degradeContent } from './protocol.js'
+import { degradeContent, stripEmoji } from './protocol.js'
 
 const MAX_CONVERSATIONS = 50
 const MAX_MESSAGES = 100
@@ -57,7 +57,7 @@ export function createStore(storageImpl) {
       try { visibleContacts = JSON.parse(visibleRaw) } catch (e) { visibleContacts = [] }
     },
     async setConversations(list) {
-      conversations = Array.isArray(list) ? list : []
+      conversations = Array.isArray(list) ? list.map((c) => ({ ...c, name: stripEmoji(c.name || '') })) : []
       const slice = conversations.slice(0, CACHE_CONVERSATIONS)
       await cache.set(CONV_KEY, JSON.stringify(slice))
     },
@@ -82,13 +82,15 @@ export function createStore(storageImpl) {
     },
     async upsertMessage(msg) {
       const content = typeof msg.content === 'string' ? msg.content : degradeContent(msg.content)
+      const senderName = stripEmoji(msg.sender_name || '')
+      const targetName = stripEmoji(msg.target_name || '')
       const key = msg.target_id
       const isTemp = !(msg.visible !== false && this.isVisible(msg.target_id))
       const messages = messagesByTarget[key] || []
       messages.push({
         message_type: msg.message_type,
         sender_id: msg.sender_id,
-        sender_name: msg.sender_name || '',
+        sender_name: senderName,
         content: content,
         is_self: msg.is_self === true,
         time: msg.time || Date.now()
@@ -101,7 +103,7 @@ export function createStore(storageImpl) {
       const conv = {
         id: key,
         type: msg.message_type,
-        name: msg.target_name || msg.sender_name || key,
+        name: targetName || senderName || key,
         last_msg: content,
         time: msg.time || Date.now(),
         is_temporary: isTemp
@@ -112,7 +114,9 @@ export function createStore(storageImpl) {
       await cache.set(CONV_KEY, JSON.stringify(conversations.slice(0, CACHE_CONVERSATIONS)))
     },
     async setVisibleContacts(list) {
-      visibleContacts = Array.isArray(list) ? list : []
+      visibleContacts = Array.isArray(list)
+        ? list.map((c) => ({ ...c, name: stripEmoji(c.name || '') }))
+        : []
       const visibleIds = new Set(visibleContacts.map((c) => c.id))
       const remaining = conversations.filter((c) => !c.is_temporary)
       conversations = remaining.filter((c) => visibleIds.has(c.id))

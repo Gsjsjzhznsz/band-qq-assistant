@@ -1,5 +1,6 @@
 package com.example.bandqq.sync
 
+import com.example.bandqq.onebot.OneBotParser
 import com.google.gson.JsonParser
 
 object ContactCache {
@@ -22,7 +23,7 @@ object ContactCache {
                     id = o.get("group_id")?.asLong?.toString() ?: continue
                     name = o.get("group_name")?.asString ?: id
                 }
-                out.add(VisibleContact(id, type, name))
+                out.add(VisibleContact(id, type, OneBotParser.stripEmoji(name)))
             }
         } catch (e: Exception) {
             return emptyList()

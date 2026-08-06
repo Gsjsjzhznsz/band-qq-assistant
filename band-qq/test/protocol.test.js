@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush, getVisibleContacts, getConnectState } from '../src/common/protocol.js'
+import { nextSeq, sendMessage, getConversations, getHistory, degradeContent, decodePush, getVisibleContacts, getConnectState, stripEmoji, markEmoji } from '../src/common/protocol.js'
 
 describe('protocol', () => {
   it('seq 自增', () => {
@@ -75,5 +75,26 @@ describe('protocol', () => {
     const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '张三', content: '你好', time: 1700000000 }
     const msg = decodePush(raw)
     assert.equal(msg.visible, true)
+  })
+
+  it('stripEmoji 剔除名称中的 emoji', () => {
+    assert.equal(stripEmoji('😊张三👍'), '张三')
+    assert.equal(stripEmoji('王🌹'), '王')
+  })
+
+  it('markEmoji 将文本中的 emoji 替换为 [表情]', () => {
+    assert.equal(markEmoji('hi😊wow👋'), 'hi[表情]wow[表情]')
+  })
+
+  it('degradeContent 将文本 emoji 降级为 [表情]', () => {
+    assert.equal(degradeContent([{ type: 'text', data: { text: '早😊' } }, { type: 'face', data: { id: '178' } }]), '早[表情][表情]')
+  })
+
+  it('decodePush 剔除名称并保留内容 emoji 标记', () => {
+    const raw = { type: 'push_message', message_type: 'group', target_id: '9', sender_id: '8', sender_name: '🌟阿杰', target_name: '群名🌺', content: '注意😄', time: 1700000000 }
+    const msg = decodePush(raw)
+    assert.equal(msg.sender_name, '阿杰')
+    assert.equal(msg.target_name, '群名')
+    assert.equal(msg.content, '注意[表情]')
   })
 })
