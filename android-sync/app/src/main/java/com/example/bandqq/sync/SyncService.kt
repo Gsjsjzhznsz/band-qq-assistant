@@ -57,6 +57,32 @@ object BandStateBus {
     }
 }
 
+/** 新消息到达回调，供聊天记录页实时刷新（参数为收到消息的会话 targetId） */
+object MessageBus {
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(String) -> Unit>()
+
+    fun add(listener: (String) -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun remove(listener: (String) -> Unit) {
+        listeners.remove(listener)
+    }
+
+    fun notify(targetId: String) {
+        for (l in listeners) {
+            try {
+                l(targetId)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    internal fun clear() {
+        listeners.clear()
+    }
+}
+
 class SyncService : Service() {
 
     companion object {

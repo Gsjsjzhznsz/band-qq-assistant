@@ -210,6 +210,21 @@ class MessageBrokerTest {
         broker.onState(true)
         assertEquals(0, count)
     }
+
+    @Test
+    fun `收到 onebot 事件时通过 MessageBus 广播 targetId`() {
+        var notified: String? = null
+        MessageBus.add { notified = it }
+        try {
+            val broker = MessageBroker(parser, FakeOneBot { _, _, _ -> true }, MessageStore())
+            broker.handleOneBotEvent(
+                OneBotMessage("group", "123", "456", "张三", "你好", 1700000000L)
+            )
+            assertEquals("123", notified)
+        } finally {
+            MessageBus.clear()
+        }
+    }
 }
 
 class FakeOneBot(private val onSend: (String, String, String) -> Boolean) : MessageSender {

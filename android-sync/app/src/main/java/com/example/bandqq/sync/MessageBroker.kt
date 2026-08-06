@@ -90,6 +90,7 @@ class MessageBroker(
                 isSelf = msg.isSelf
             )
         )
+        MessageBus.notify(msg.targetId)
         val visible = store.isVisibleContact(msg.targetId)
         val targetName = store.conversationName(msg.targetId, msg.messageType, msg.senderName)
         return parser.toHandBandFrame(msg, visible, targetName)

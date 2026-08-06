@@ -6,6 +6,7 @@ import android.widget.SimpleAdapter
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.bandqq.sync.ConversationInfo
+import com.example.bandqq.sync.MessageBus
 import com.example.bandqq.sync.MessageStore
 import com.example.bandqq.sync.StoreHolder
 import com.example.bandqq.sync.SyncPreferencesKv
@@ -16,6 +17,7 @@ import java.util.Locale
 class ChatHistoryActivity : AppCompatActivity() {
 
     private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+    private val messageListener: (String) -> Unit = { _ -> runOnUiThread { setupList() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +30,12 @@ class ChatHistoryActivity : AppCompatActivity() {
         super.onResume()
         ensureStore()
         setupList()
+        MessageBus.add(messageListener)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        MessageBus.remove(messageListener)
     }
 
     private fun ensureStore() {
