@@ -67,7 +67,9 @@ class MessageBroker(
                 return true
             }
             "get_visible_contacts" -> {
-                bandSender(store.buildVisibleContactsFrame(seq))
+                val frame = store.buildVisibleContactsFrame(seq)
+                log("get_visible_contacts -> ${store.getVisibleContacts().size} contacts")
+                bandSender(frame)
                 return true
             }
             "get_connect_state" -> {
@@ -111,5 +113,13 @@ class MessageBroker(
 
     private fun tryAutoFetch() {
         autoFetch?.invoke(store)
+    }
+
+    private fun log(msg: String) {
+        try {
+            android.util.Log.d("MessageBroker", msg)
+        } catch (e: Throwable) {
+            // JVM 单测环境下 android.util.Log 不可用，静默忽略
+        }
     }
 }

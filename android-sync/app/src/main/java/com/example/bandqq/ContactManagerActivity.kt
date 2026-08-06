@@ -145,8 +145,10 @@ class ContactManagerActivity : AppCompatActivity() {
         for (i in currentRows.indices) {
             if (listView.isItemChecked(i)) checked.add(currentRows[i].contact)
         }
+        android.util.Log.d("ContactManager", "saveSelection checked=${checked.size} type=$currentType")
         val merged = (store.getVisibleContacts().filter { it.type != currentType } + checked)
         store.setVisibleContacts(merged)
+        android.util.Log.d("ContactManager", "visibleContacts now=${store.getVisibleContacts().size}")
         InterconnectBridge.sendToBand(store.buildVisibleContactsFrame(0))
         toast("已保存并同步到手环")
         finish()
