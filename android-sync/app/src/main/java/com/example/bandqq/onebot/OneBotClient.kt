@@ -91,15 +91,23 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         ws = client.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected = true
+                Log.d("OneBotClient", "WS onOpen, connected=$connected")
                 listener?.onState(true)
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                Log.d("OneBotClient", "WS recv: ${text.take(300)}")
                 val msg = parser.parseMessageEvent(text)
-                if (msg != null) listener?.onEvent(msg)
+                if (msg == null) {
+                    Log.w("OneBotClient", "WS msg parse -> null (may be meta/heartbeat)")
+                } else {
+                    listener?.onEvent(msg)
+                }
             }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {}
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                Log.w("OneBotClient", "WS recv binary bytes (ignored)")
+            }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 connected = false

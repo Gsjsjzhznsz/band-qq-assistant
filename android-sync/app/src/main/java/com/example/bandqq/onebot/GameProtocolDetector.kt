@@ -33,6 +33,13 @@ object GameProtocolDetector {
         .pingInterval(0, TimeUnit.SECONDS)
         .build()
 
+    /** 探测用宽松超时客户端：模拟器/局域网首次建连 + WS 握手可能超过 800ms。 */
+    private val wsProbeClient = OkHttpClient.Builder()
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.SECONDS)
+        .pingInterval(0, TimeUnit.SECONDS)
+        .build()
+
     fun defaultPorts(): IntArray = intArrayOf(3001, 3000, 8080, 3005, 5000)
 
     /** 连接测试结果：ws/http 各自是否可达。 */
@@ -138,7 +145,7 @@ object GameProtocolDetector {
             if (!token.isNullOrBlank()) {
                 builder.header("Authorization", "Bearer $token")
             }
-            val ws: WebSocket = wsClient.newWebSocket(
+            val ws: WebSocket = wsProbeClient.newWebSocket(
                 builder.build(),
                 object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -160,8 +167,7 @@ object GameProtocolDetector {
         } catch (e: Exception) {
             return false
         }
-        latch.await(1, TimeUnit.SECONDS)
-        wsRef?.cancel()
+        latch.await(3, TimeUnit.SECONDS)
         return result[0]
     }
 

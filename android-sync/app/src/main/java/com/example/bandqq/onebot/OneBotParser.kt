@@ -20,6 +20,7 @@ class OneBotParser {
         val obj = try {
             JsonParser.parseString(json).asJsonObject
         } catch (e: Exception) {
+            android.util.Log.w("OneBotParser", "parse error", e)
             return null
         }
         if (obj.get("post_type")?.asString != "message") return null
