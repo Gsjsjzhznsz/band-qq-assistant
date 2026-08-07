@@ -6,15 +6,15 @@
     <list class="list" if="{{conversations.length}}">
       <list-item type="conv" for="{{(idx, item) in conversations}}" onclick="openChat(idx)">
         <div class="card item">
-          <div class="avatar {{$item.type === 'group' ? 'avatar-group' : 'avatar-private'}}">
-            <text class="avatar-text">{{$item.name.charAt(0)}}</text>
+          <div class="avatar {{item.type === 'group' ? 'avatar-group' : 'avatar-private'}}">
+            <text class="avatar-text">{{item.name.charAt(0)}}</text>
           </div>
           <div class="item-body">
             <div class="item-title-row">
-              <text class="item-name">{{$item.name}}</text>
-              <text class="item-tag" if="{{$item.is_temporary}}">临时</text>
+              <text class="item-name">{{item.name}}</text>
+              <text class="item-tag" if="{{item.is_temporary}}">临时</text>
             </div>
-            <text class="item-sub">{{$item.last_msg}}</text>
+            <text class="item-sub">{{item.last_msg}}</text>
           </div>
         </div>
       </list-item>
@@ -67,13 +67,15 @@
       this.loadVisibleContacts()
     },
     onInit() {
-      this.$app.$def.on('conversations', () => this.loadConversations())
-      this.$app.$def.on('visible_contacts', () => this.loadConversations())
+      this.$app.$def.on('conversations', () => this.refreshConversations())
+      this.$app.$def.on('visible_contacts', () => this.refreshConversations())
+      this.$app.$def.on('message', () => this.refreshConversations())
       this.$app.$def.on('state', () => this.refreshStatus())
     },
     onDestroy() {
       this.$app.$def.off('conversations')
       this.$app.$def.off('visible_contacts')
+      this.$app.$def.off('message')
       this.$app.$def.off('state')
     },
     async pullConnectState() {
@@ -92,9 +94,13 @@
     },
     async loadConversations() {
       const store = this.$app.$def.store
-      const api = this.$app.$def.api
       this.conversations = await store.getConversations()
+      const api = this.$app.$def.api
       api.send({ type: 'get_conversations', seq: Date.now() % 100000 })
+    },
+    async refreshConversations() {
+      const store = this.$app.$def.store
+      this.conversations = await store.getConversations()
     },
     openChat(idx) {
       const conv = this.conversations[idx]

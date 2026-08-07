@@ -115,6 +115,12 @@ class MessageBroker(
         autoFetch?.invoke(store)
     }
 
+    /** 手环连接建立后补推可见联系人，确保保存时未连接的联系人在连接后自动同步到手环。 */
+    fun pushVisibleContacts() {
+        bandSender(store.buildVisibleContactsFrame(0))
+        log("pushVisibleContacts -> ${store.getVisibleContacts().size} contacts")
+    }
+
     private fun log(msg: String) {
         try {
             android.util.Log.d("MessageBroker", msg)

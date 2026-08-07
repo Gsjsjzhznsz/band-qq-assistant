@@ -149,8 +149,12 @@ class ContactManagerActivity : AppCompatActivity() {
         val merged = (store.getVisibleContacts().filter { it.type != currentType } + checked)
         store.setVisibleContacts(merged)
         android.util.Log.d("ContactManager", "visibleContacts now=${store.getVisibleContacts().size}")
-        InterconnectBridge.sendToBand(store.buildVisibleContactsFrame(0))
-        toast("已保存并同步到手环")
+        if (InterconnectBridge.available && InterconnectBridge.isNodeReady()) {
+            InterconnectBridge.sendToBand(store.buildVisibleContactsFrame(0))
+            toast("已保存并同步到手环")
+        } else {
+            toast("已保存，但手环未连接，将在连接后自动同步")
+        }
         finish()
     }
 

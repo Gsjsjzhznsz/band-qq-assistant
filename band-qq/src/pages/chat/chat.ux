@@ -7,7 +7,7 @@
       <text class="page-title">{{name}}</text>
     </div>
     <scroll class="msg-area" scroll-y="true">
-      <div class="msg-item {{msg.is_self ? 'self' : 'other'}}" for="{{messages}}">
+      <div class="msg-item {{msg.is_self ? 'self' : 'other'}}" for="{{(idx, msg) in messages}}">
         <div class="msg-col {{msg.is_self ? 'col-self' : 'col-other'}}">
           <text class="msg-name" if="{{msg.message_type === 'group'}}">{{msg.is_self ? '我' : msg.sender_name}}</text>
           <text class="bubble {{msg.is_self ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>

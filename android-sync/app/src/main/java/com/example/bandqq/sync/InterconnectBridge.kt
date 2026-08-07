@@ -54,6 +54,9 @@ object InterconnectBridge {
     var available: Boolean = false
         private set
 
+    /** 是否存在可用连接节点（sendToBand 可实际下发的前提）。 */
+    fun isNodeReady(): Boolean = currentNode != null
+
     private val heartbeatScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var heartbeatJob: Job? = null
 
@@ -242,6 +245,7 @@ object InterconnectBridge {
         SyncState.bandConnected = true
         BandStateBus.notify(true)
         broker?.bandSender?.invoke(SyncStatePush.buildFrame())
+        broker?.pushVisibleContacts()
     }
 
     fun onDisconnect() {

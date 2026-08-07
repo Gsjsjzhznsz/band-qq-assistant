@@ -14,11 +14,47 @@ function getSystemInterconnect() {
 
 export function createApi(interconnectImpl) {
   const ic = interconnectImpl || null
-  // 注入实现（单测）时同步建立连接；默认实现惰性加载
+  // 注入实现（单测）时同步建立连接；默认实现惰性加载。连接就绪统一由 onopen 决定。
   let conn = ic ? ic.instance() : null
   let connected = false
   let messageHandler = null
   let connPromise = null
+
+  // 连接就绪门控：真实场景下业务帧需等 onopen 后才发送，避免通道未开导致首拉丢失
+  const READY_TIMEOUT_MS = 10000
+  let readyPromise = null
+  let readyResolve = null
+  let readyTimer = null
+
+  function markReady() {
+    connected = true
+    if (readyResolve) {
+      clearTimeout(readyTimer)
+      readyResolve()
+      readyResolve = null
+      readyPromise = null
+      readyTimer = null
+    }
+  }
+
+  function waitReady() {
+    if (connected) return Promise.resolve()
+    if (!readyPromise) {
+      readyPromise = new Promise((resolve) => {
+        readyResolve = resolve
+        // 超时兜底：长时间未确认 onopen 也继续尝试发送，失败由 send fail 回调反映
+        readyTimer = setTimeout(() => {
+          if (readyResolve) {
+            readyResolve()
+            readyResolve = null
+          }
+          readyPromise = null
+          readyTimer = null
+        }, READY_TIMEOUT_MS)
+      })
+    }
+    return readyPromise
+  }
 
   function ensureConn() {
     if (conn) return Promise.resolve(conn)
@@ -44,7 +80,7 @@ export function createApi(interconnectImpl) {
       }
     }
     c.onopen = (data) => {
-      connected = true
+      markReady()
       if (handlers.onOpen) handlers.onOpen(data)
     }
     c.onclose = (data) => {
@@ -69,24 +105,24 @@ export function createApi(interconnectImpl) {
 
   function send(payload) {
     return new Promise((resolve, reject) => {
-      ensureConn().then((c) => {
-        c.send({
+      ensureConn()
+        .then((c) => waitReady().then(() => c.send({
           data: payload,
           success: () => resolve(),
           fail: (data, code) => reject({ data, code })
-        })
-      }).catch(reject)
+        })))
+        .catch(reject)
     })
   }
 
   function connectStatus() {
     return new Promise((resolve, reject) => {
-      ensureConn().then((c) => {
-        c.diagnosis({
+      ensureConn()
+        .then((c) => waitReady().then(() => c.diagnosis({
           success: (data) => resolve(data.status === 0),
           fail: (data, code) => reject({ data, code })
-        })
-      }).catch(reject)
+        })))
+        .catch(reject)
     })
   }
 
