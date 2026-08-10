@@ -13,7 +13,7 @@
 
 ## 状态
 - [x] Task 1 工具链升级与 Miuix 探测（BUILD SUCCESSFUL，APK 11.7MB）
-- [ ] Task 2 主题 + 状态基座
+- [x] Task 2 主题 + 状态基座（产物：`BandQQTheme`、`useBandConnected`、`toast`、`AppTab`）
 - [ ] Task 3 底部导航壳 + 四页面骨架
 - [ ] Task 4 主页 HomeScreen
 - [ ] Task 5 联系人 ContactScreen
