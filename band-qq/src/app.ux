@@ -25,13 +25,15 @@ function emit(event, data) {
 
 function handleMessage(msg) {
   if (!msg || !msg.type) return
+  try {
+    console.log('[BANDQQ] v10 msg <-', msg.type, msg.target_id || msg.targetId || msg.seq || '')
+  } catch (e) {}
   switch (msg.type) {
     case 'ping':
       api.send({ type: 'pong', seq: msg.seq || 0 })
       break
-    case 'push_message':
-      store.upsertMessage(msg)
-      emit('message', msg)
+case 'push_message':
+      store.upsertMessage(msg).then(() => { try { console.log('[BANDQQ] v17 upsert target=' + msg.target_id + ' len=' + (typeof msg.content === 'string' ? msg.content.length : '?') + ' isSelf=' + (msg.is_self === true)) } catch (e) {}; emit('message', msg) }).catch((e) => console.error('upsert fail', e))
       break
     case 'conversation_list':
       if (Array.isArray(msg.list)) store.setConversations(msg.list)
@@ -40,7 +42,10 @@ function handleMessage(msg) {
     case 'history_list':
       if (Array.isArray(msg.list) && msg.target_id) {
         store.setMessages(msg.target_id, msg.list)
+        try { console.log('[BANDQQ] v17 history set target=' + msg.target_id + ' n=' + msg.list.length) } catch (e) {}
         emit('history', msg)
+      } else {
+        try { console.log('[BANDQQ] v17 history BAD target=' + msg.target_id + ' isArr=' + Array.isArray(msg.list)) } catch (e) {}
       }
       break
     case 'connect_state':
@@ -64,6 +69,16 @@ export default {
   protocol,
   store,
   handleMessage,
+  emit,
+  /**
+   * 全局统一上行入口：由 app 层持有的 api 发送，不受页面销毁影响�?   * 返回 Promise，页面可链式观察成功/失败�?   */
+sendUpstream(payload) {
+    console.log('[BANDQQ] v9 upstream ->', JSON.stringify(payload).slice(0, 160))
+    return api.send(payload).then(
+      (r) => { console.log('[BANDQQ] v9 upstream OK') ; return r },
+      (e) => { console.log('[BANDQQ] v9 upstream FAIL', JSON.stringify(e)) ; throw e }
+    )
+  },
   on(event, fn) {
     if (!listeners[event]) listeners[event] = []
     listeners[event].push(fn)
@@ -79,6 +94,7 @@ export default {
     if (idx >= 0) set.splice(idx, 1)
   },
   onCreate() {
+    console.log('[BANDQQ] v9 app onCreate, protocol=', typeof protocol, 'store=', typeof store, 'api=', typeof api)
     store.init()
     const pullAll = () => {
       api.send(protocol.getConnectState())
@@ -97,3 +113,4 @@ export default {
     api.send(protocol.getConversations())
   }
 }
+

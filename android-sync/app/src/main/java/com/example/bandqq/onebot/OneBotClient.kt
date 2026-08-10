@@ -132,23 +132,39 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         val body = parser.buildSendRequest(messageType, targetId, content)
         // SnowLuma 从路径解析 action：发到与 body action 一致的路径（如 /send_group_msg）
         val action = parser.actionName(messageType)
-        val request = Request.Builder()
-            .url(baseUrl.trimEnd('/') + "/$action")
-            .post(body.toRequestBody("application/json".toMediaType()))
-            .apply { if (config.httpToken.isNotBlank()) header("Authorization", "Bearer ${config.httpToken}") }
-            .build()
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                Log.e("OneBotClient", "send failed", e)
+        fun doSend(url: String, onFail: () -> Unit) {
+            val request = Request.Builder()
+                .url(url)
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .apply { if (config.httpToken.isNotBlank()) header("Authorization", "Bearer ${config.httpToken}") }
+                .build()
+            client.newCall(request).enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                    try { Log.e("OneBotClient", "send failed: $url", e) } catch (t: Throwable) {}
+                    onFail()
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: Response) {
+                    response.use {
+                        val resp = it.body?.string() ?: ""
+                        if (it.isSuccessful) {
+                            // OneBot 返回 HTTP 200，但业务可能失败（retcode != 0），记录下来便于定位
+                            try { Log.d("OneBotClient", "send ok(${it.code}) $url -> $resp") } catch (t: Throwable) {}
+                            callback(true)
+                        } else {
+                            try { Log.e("OneBotClient", "send http ${it.code} $url -> $resp") } catch (t: Throwable) {}
+                            onFail()
+                        }
+                    }
+                }
+            })
+        }
+        val root = baseUrl.trimEnd('/')
+        doSend("$root/$action") {
+            doSend("$root/api/$action") {
                 callback(false)
             }
-
-            override fun onResponse(call: okhttp3.Call, response: Response) {
-                response.use {
-                    callback(it.isSuccessful)
-                }
-            }
-        })
+        }
     }
 
     /**

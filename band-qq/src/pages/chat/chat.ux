@@ -2,48 +2,56 @@
   <div class="page">
     <div class="top-row">
       <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
+      <text class="msg-count">{{messages.length}} 条</text>
     </div>
     <div class="title-bar">
       <text class="page-title">{{name}}</text>
     </div>
-    <scroll class="msg-area" scroll-y="true">
-      <div class="msg-item {{msg.is_self ? 'self' : 'other'}}" for="{{(idx, msg) in messages}}">
-        <div class="msg-col {{msg.is_self ? 'col-self' : 'col-other'}}">
-          <text class="msg-name" if="{{msg.message_type === 'group'}}">{{msg.is_self ? '我' : msg.sender_name}}</text>
-          <text class="bubble {{msg.is_self ? 'bubble-self' : 'bubble-other'}}">{{msg.content}}</text>
+    <div class="send-status" show="{{sendStatus}}">
+      <text class="send-status-text">{{sendStatus}}</text>
+    </div>
+    <scroll class="msg-area" scroll-y="true" scroll-top="{{scrollTop}}">
+      <div class="msg-item {{item.is_self ? 'self' : 'other'}}" for="{{item in messages}}">
+        <div class="msg-col {{item.is_self ? 'col-self' : 'col-other'}}">
+          <text class="msg-name" if="{{item.message_type === 'group'}}">{{item.is_self ? '我' : item.sender_name}}</text>
+          <text class="bubble {{item.is_self ? 'bubble-self' : 'bubble-other'}}">{{item.content}}</text>
         </div>
       </div>
     </scroll>
-    <div class="input-bar" onclick="openCompose">
-      <text class="input-preview">点击输入消息</text>
+    <div class="input-bar" @click="openCompose">
       <image class="btn" src="../../common/ui/kb_show.png"></image>
     </div>
   </div>
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; }
-  .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
+  .page { flex-direction: column; background-color: #000000; height: 466px; }
+  .top-row { height: 78px; flex-direction: row; align-items: flex-start; justify-content: space-between; padding: 6px 8px 0 0; }
   .btn { width: 102px; height: 72px; }
-  .title-bar { height: 40px; align-items: center; justify-content: center; }
-  .page-title { font-size: 24px; color: #ffffff; }
-  .msg-area { height: 160px; }
-  .msg-item { width: 192px; padding: 4px 8px; flex-direction: row; }
+  .msg-count { font-size: 14px; color: rgba(255, 255, 255, 0.5); margin-right: 8px; margin-top: 6px; }
+  .title-bar { height: 34px; flex-direction: row; align-items: center; justify-content: center; }
+  .send-status { height: 26px; flex-direction: row; align-items: center; justify-content: center; }
+  .send-status-text { font-size: 16px; color: #0d84ff; }
+  .page-title { font-size: 22px; color: #ffffff; }
+  .new-dot { width: 14px; height: 14px; border-radius: 7px; background-color: #ff5a5a; margin-left: 10px; }
+  .msg-area { flex: 1; height: 288px; }
+  .msg-item { width: 192px; padding: 0 8px; margin-top: 10px; flex-direction: row; flex-shrink: 0; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
-  .msg-col { flex-direction: column; }
+  .msg-col { flex-direction: column; align-items: flex-start; flex-shrink: 0; }
   .col-self { align-items: flex-end; }
   .col-other { align-items: flex-start; }
-  .msg-name { font-size: 14px; color: rgba(255, 255, 255, 0.55); margin-bottom: 2px; }
-  .bubble { max-width: 140px; padding: 8px 10px; border-radius: 10px; font-size: 18px; }
+  .msg-name { font-size: 14px; color: rgba(255, 255, 255, 0.55); margin-bottom: 4px; }
+  .bubble { max-width: 140px; padding: 8px 10px; border-radius: 10px; font-size: 18px; line-height: 26px; word-break: break-all; }
   .bubble-self { background-color: #07c160; color: #ffffff; }
   .bubble-other { background-color: #1f1f1f; color: #ffffff; }
-  .input-bar { height: 84px; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 8px; border-top: 1px solid #222222; }
+  .input-bar { height: 84px; flex-direction: row; align-items: center; justify-content: center; border-top: 1px solid #222222; }
   .input-preview { flex: 1; font-size: 20px; color: #666666; }
 </style>
 
 <script>
   import router from '@system.router'
+  import protocol from '../../common/protocol'
 
   export default {
     protected: {
@@ -51,42 +59,96 @@
       name: '',
       messages: []
     },
+    private: {
+      sendStatus: '',
+      scrollTop: 0
+    },
     onInit(params) {
-      this.targetId = (params && params.targetId) || ''
-      this.name = (params && params.name) || '聊天'
+      console.log('[BANDQQ] v13 chat onInit params=', params ? JSON.stringify(params) : 'undefined')
+      let targetId = (params && params.targetId) || ''
+      let convName = (params && params.name) || ''
+      if (!targetId && params && params.uri) {
+        const q = (params.uri.split('?')[1] || '')
+        if (q) {
+          const m = {}
+          q.split('&').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) m[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1)) })
+          targetId = m.targetId || ''
+          convName = m.name || ''
+        }
+      }
+      if (!targetId) {
+        const st = this.$app.$def.store
+        const last = st.getLastTarget()
+        if (last && last.targetId) {
+          targetId = last.targetId
+          convName = last.name || convName
+        }
+      }
+      console.log('[BANDQQ] v13 chat resolved target=', targetId)
+      this.targetId = targetId
+      this.name = convName || '聊天'
       this.$app.$def.on('message', () => this.loadMessages())
       this.$app.$def.on('history', (msg) => {
         if (msg.target_id === this.targetId) this.loadMessages()
       })
       this.$app.$def.on('cleared', () => this.loadMessages())
+      this.$app.$def.on('send_status', () => this.refreshSendStatus())
       this.requestHistory()
       this.loadMessages()
+      this.refreshSendStatus()
     },
     onDestroy() {
       this.$app.$def.off('message')
       this.$app.$def.off('history')
       this.$app.$def.off('cleared')
+      this.$app.$def.off('send_status')
+    },
+    refreshSendStatus() {
+      const store = this.$app.$def.store
+      const st = store.getSendStatus()
+      this.sendStatus = (st && st.text) || ''
     },
     onShow() {
       this.loadMessages()
+      this.requestHistory()
     },
     goBack() {
       router.back()
     },
     openCompose() {
+      this.hasNew = false
       router.push({
         uri: '/compose',
         params: { targetId: this.targetId, name: this.name }
       })
     },
     requestHistory() {
-      const protocol = this.$app.$def.protocol
       const api = this.$app.$def.api
+      console.log('[BANDQQ] v9 chat requestHistory target=', this.targetId, 'name=', this.name)
       api.send(protocol.getHistory(this.targetId, 50))
     },
     async loadMessages() {
       const store = this.$app.$def.store
-      this.messages = await store.getMessages(this.targetId)
+      const msgs = (await store.getMessages(this.targetId)).slice()
+      try { console.log('[BANDQQ] v17 chat load target=' + this.targetId + ' got=' + msgs.length) } catch (e) {}
+      // 兜底：本地消息明细为空但会话有最新消息摘要时，先显示摘要，避免点进聊天一片空白
+      const convs = await store.getConversations()
+      const conv = convs.find((c) => c.id === this.targetId)
+      if (conv && conv.last_msg && !msgs.some((m) => m.content === conv.last_msg)) {
+        msgs.push({
+          message_type: conv.type || 'private',
+          sender_name: conv.name || '会话',
+          content: conv.last_msg,
+          time: conv.time || Date.now(),
+          is_self: false
+        })
+      }
+      // 新消息判定：条数变多时置新消息标记（右侧红点），不自动滚动
+      if (msgs.length > this.lastCount) this.hasNew = true
+      this.lastCount = msgs.length
+      this.messages = msgs
+      // 每次数据更新滚动到底部，确保新消息可见
+      this.scrollTop = this.lastCount * 60 + 10
     }
   }
 </script>

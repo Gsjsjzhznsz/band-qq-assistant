@@ -55,6 +55,7 @@
 
 <script>
   import router from '@system.router'
+  import protocol from '../../common/protocol'
 
   export default {
     protected: {
@@ -68,12 +69,22 @@
     onInit(params) {
       this.targetId = (params && params.targetId) || ''
       this.name = (params && params.name) || '聊天'
+      if (!this.targetId) {
+        const st = this.$app.$def.store
+        const last = st ? st.getLastTarget() : null
+        if (last && last.targetId) {
+          this.targetId = last.targetId
+          this.name = last.name || this.name
+        }
+      }
+      console.log('[BANDQQ] v13 compose target=', this.targetId, 'name=', this.name)
     },
     goBack() {
       router.back()
     },
     onComplete(e) {
-      this.draft += (e.detail && e.detail.content) || ''
+      const c = (e && e.content) || (e && e.detail && e.detail.content) || ''
+      this.draft += c
     },
     onDelete() {
       this.draft = this.draft.slice(0, -1)
@@ -87,28 +98,57 @@
     },
     async doConfirm() {
       const content = this.draft.trim()
-      if (!content) return
-      this.confirmShow = false
-      this.draft = ''
-      await this.sendMessage(content)
+      if (content) this.sendMessage(content)
+      router.back()
     },
     async sendMessage(content) {
-      const protocol = this.$app.$def.protocol
-      const api = this.$app.$def.api
-      const messageType = await this.conversationType()
-      const msg = protocol.sendMessage(messageType, this.targetId, content)
-      try {
-        await api.send(msg)
-        router.back()
-      } catch (e) {
-        console.error('send failed', e)
-      }
-    },
-    async conversationType() {
       const store = this.$app.$def.store
-      const convs = await store.getConversations()
-      const c = convs.find((x) => x.id === this.targetId)
-      return c ? c.type : 'private'
+      const { sendUpstream, emit } = this.$app.$def
+      // 本地立即回显自己发的消息：发送动作已执行即显示，不被上行成败阻塞
+      store.upsertMessage({
+        type: 'push_message',
+        message_type: 'private',
+        target_id: this.targetId,
+        sender_id: 'self',
+        sender_name: '我',
+        target_name: this.name,
+        content: content,
+        is_self: true,
+        time: Date.now()
+      }).then(() => emit && emit('message', {}))
+      // 立即用默认类型构造，由 app 层统一发送；页面销毁不影响请求执行
+      const msg = protocol.sendMessage('private', this.targetId, content)
+      console.log('[BANDQQ] v9 send ->', JSON.stringify({ target: this.targetId, name: this.name, content: content, type: 'private' }))
+      store.setSendStatus('发送中…')
+      emit && emit('send_status')
+      if (sendUpstream) {
+        sendUpstream(msg).then(() => {
+          store.setSendStatus('已发送')
+          emit && emit('send_status')
+        }).catch((e) => {
+          store.setSendStatus('发送失败:' + (e && e.code ? e.code : '未知'))
+          emit && emit('send_status')
+          console.error('send failed', e)
+        })
+      } else {
+        console.error('sendUpstream missing')
+      }
+      // 后台再校正消息类型（仅用于本地显示，不阻塞发送）
+      this.correctConversationType(content)
+    },
+    async correctConversationType(content) {
+      try {
+        const { sendUpstream } = this.$app.$def
+        const store = this.$app.$def.store
+        const convs = await store.getConversations()
+        const c = convs.find((x) => x.id === this.targetId)
+        if (c && c.type && c.type !== 'private' && sendUpstream) {
+          const msg = protocol.sendMessage(c.type, this.targetId, content)
+          sendUpstream(msg).catch((e) => console.error('send retry failed', e))
+        }
+      } catch (e) {
+        console.error('correct type failed', e)
+      }
     }
   }
 </script>

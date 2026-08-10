@@ -106,12 +106,15 @@ export function createApi(interconnectImpl) {
   function send(payload) {
     return new Promise((resolve, reject) => {
       ensureConn()
-        .then((c) => waitReady().then(() => c.send({
+        .then((c) => c.send({
           data: payload,
           success: () => resolve(),
-          fail: (data, code) => reject({ data, code })
-        })))
-        .catch(reject)
+          fail: (data, code) => {
+            console.log('[BANDQQ] v9 api.send fail', code, JSON.stringify(data && data.ts && {}) )
+            reject({ data, code })
+          }
+        }))
+        .catch((e) => { console.log('[BANDQQ] v9 api.send throw', String(e)) ; reject(e) })
     })
   }
 

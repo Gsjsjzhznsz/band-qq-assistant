@@ -1,11 +1,11 @@
 let seq = 0
 
-export function nextSeq() {
+function nextSeq() {
   seq += 1
   return seq
 }
 
-export function sendMessage(messageType, targetId, content) {
+function sendMessage(messageType, targetId, content) {
   return {
     type: 'send_message',
     seq: nextSeq(),
@@ -15,37 +15,64 @@ export function sendMessage(messageType, targetId, content) {
   }
 }
 
-export function getConversations() {
+function getConversations() {
   return { type: 'get_conversations', seq: nextSeq() }
 }
 
-export function getVisibleContacts() {
+function getVisibleContacts() {
   return { type: 'get_visible_contacts', seq: nextSeq() }
 }
 
-export function getConnectState() {
+function getConnectState() {
   return { type: 'get_connect_state', seq: nextSeq() }
 }
 
-export function getHistory(targetId, limit) {
+function getHistory(targetId, limit) {
   return { type: 'get_history', seq: nextSeq(), target_id: targetId, limit: limit || 20 }
 }
 
-export function clearAllHistory() {
+function clearAllHistory() {
   return { type: 'clear_all_history', seq: nextSeq() }
 }
 
-export function stripEmoji(s) {
-  if (typeof s !== 'string') return ''
-  return s.replace(/[\uD83C-\uDFFF\u2600-\u27BF\u2B00-\u2BFF\u2B50-\u2B55\uFE0F\u200D\u20E3\u3030\u303D\uA9C2\uA9CE\uA9D0-\uA9FF\uAA00-\uAA5F\u{1F000}-\u{1FAFF}]/gu, '')
+function isEmojiCode(c) {
+  return (c >= 0x2600 && c <= 0x27bf) ||
+    (c >= 0x2b00 && c <= 0x2bff) ||
+    (c >= 0x2b50 && c <= 0x2b55) ||
+    c === 0xfe0f || c === 0x200d || c === 0x20e3 ||
+    c === 0x3030 || c === 0x303d ||
+    (c >= 0xa9c2 && c <= 0xa9ff) ||
+    (c >= 0xaa00 && c <= 0xaa5f)
 }
 
-export function markEmoji(s) {
+function transformEmoji(s, replace) {
   if (typeof s !== 'string') return ''
-  return s.replace(/[\uD83C-\uDFFF\u2600-\u27BF\u2B00-\u2BFF\u2B50-\u2B55\uFE0F\u200D\u20E3\u3030\u303D\uA9C2\uA9CE\uA9D0-\uA9FF\uAA00-\uAA5F\u{1F000}-\u{1FAFF}]/gu, '[表情]')
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i)
+    if (c >= 0xd83c && c <= 0xd83e) {
+      out += replace ? '[表情]' : ''
+      i++
+      continue
+    }
+    if (isEmojiCode(c)) {
+      out += replace ? '[表情]' : ''
+      continue
+    }
+    out += s[i]
+  }
+  return out
 }
 
-export function degradeContent(raw) {
+function stripEmoji(s) {
+  return transformEmoji(s, false)
+}
+
+function markEmoji(s) {
+  return transformEmoji(s, true)
+}
+
+function degradeContent(raw) {
   if (typeof raw === 'string') return markEmoji(raw)
   if (!Array.isArray(raw)) return ''
   return raw.map((seg) => {
@@ -59,7 +86,7 @@ export function degradeContent(raw) {
   }).join('')
 }
 
-export function decodePush(raw) {
+function decodePush(raw) {
   if (!raw || raw.type !== 'push_message') return null
   if (typeof raw.target_id !== 'string' || typeof raw.sender_id !== 'string') return null
   return {
@@ -75,4 +102,18 @@ export function decodePush(raw) {
     time: raw.time || Date.now(),
     visible: raw.visible !== false
   }
+}
+
+export default {
+  nextSeq,
+  sendMessage,
+  getConversations,
+  getVisibleContacts,
+  getConnectState,
+  getHistory,
+  clearAllHistory,
+  stripEmoji,
+  markEmoji,
+  degradeContent,
+  decodePush
 }

@@ -4,6 +4,18 @@ import com.example.bandqq.onebot.OneBotMessage
 import com.example.bandqq.onebot.OneBotParser
 import com.google.gson.JsonParser
 
+object HistoryDedup {
+    private val map = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    /** 同一 targetId 的 get_history 在 WINDOW_MS 内只响应一次，避免手环频繁拉取叠加重复下发历史 */
+    fun tryRun(targetId: String): Boolean {
+        val now = System.currentTimeMillis()
+        val prev = map.put(targetId, now)
+        if (prev != null && now - prev < WINDOW_MS) return false
+        return true
+    }
+    private const val WINDOW_MS = 1500L
+}
+
 interface MessageSender {
     fun sendMessage(
         messageType: String,
@@ -55,7 +67,13 @@ class MessageBroker(
             "get_history" -> {
                 val targetId = obj.get("target_id")?.asString ?: return false
                 val limit = obj.get("limit")?.asInt ?: 20
-                bandSender(store.buildHistoryFrame(targetId, limit, seq))
+                // 去重：手环 onInit+onShow 会连续发多次 get_history，只响应第一次，
+                // 避免 history_list 多次到达覆盖 push_message 新消息
+                if (HistoryDedup.tryRun(targetId)) {
+                    bandSender(store.buildHistoryFrame(targetId, limit, seq))
+                } else {
+                    log("get_history dedup skip $targetId")
+                }
                 return true
             }
             "get_conversations" -> {

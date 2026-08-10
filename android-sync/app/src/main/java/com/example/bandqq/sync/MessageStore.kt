@@ -153,7 +153,7 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
         out.sortByDescending { it.time }
         val hasMessages = out.map { it.id }.toSet()
         for (c in visibleContacts) {
-            if (c.id !in hasMessages) {
+            if (c.id.isNotEmpty() && c.id !in hasMessages) {
                 out.add(ConversationInfo(id = c.id, type = c.type, name = c.name, lastMsg = "", time = 0L))
             }
         }
@@ -288,6 +288,9 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
         obj.addProperty("seq", seq)
         obj.addProperty("target_id", targetId)
         val arr = JsonArray()
+        // 历史帧过大时可能超出互联通道单帧上限导致下发失败，这里对总帧大小做保护
+        val maxBytes = 15000
+        var bytes = obj.toString().length
         for (m in getHistory(targetId, limit)) {
             val o = JsonObject()
             o.addProperty("message_type", m.messageType)
@@ -296,7 +299,10 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
             o.addProperty("content", m.content)
             o.addProperty("time", m.time)
             o.addProperty("is_self", m.isSelf)
+            val itemBytes = o.toString().length
+            if (bytes + itemBytes > maxBytes && arr.size() > 0) break
             arr.add(o)
+            bytes += itemBytes
         }
         obj.add("list", arr)
         return obj.toString()

@@ -60,6 +60,11 @@ object InterconnectBridge {
     private val heartbeatScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var heartbeatJob: Job? = null
 
+    /**
+     * 注册手环消息监听。
+     * 使用 nodeId 级幂等锁：重复注册前先移除旧 listener，避免多条帧被多次 import
+     * 回调（已观察到 addListener 多次注册会将一条 send_message 重复执行 N 次）。
+     */
     private val messageListener = OnMessageReceivedListener { _, data ->
         try {
             val json = String(data, StandardCharsets.UTF_8)
@@ -68,6 +73,35 @@ object InterconnectBridge {
         } catch (e: Exception) {
             Log.e(TAG, "onBandMessage parse error", e)
         }
+    }
+
+    /** 已注册监听器的节点集合，作为幂等注册判断。 */
+    private val registeredNodes = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun registerListener(node: Node) {
+        val messageApi = messageApi ?: return
+        // 幂等：若该节点已注册过则先移除旧 listener，确保不会叠加多个回调
+        if (registeredNodes.remove(node.id)) {
+            Log.d(TAG, "registerListener idempotent remove old listener for ${node.id}")
+            messageApi.removeListener(node.id)
+        }
+        messageApi.addListener(node.id, messageListener)
+            .addOnSuccessListener {
+                registeredNodes.add(node.id)
+                Log.d(TAG, "registerListener ok")
+                startHeartbeat()
+            }
+            .addOnFailureListener { error ->
+                val msg = error.message.orEmpty()
+                if (msg.contains("You have registered", ignoreCase = true)) {
+                    Log.w(TAG, "listener already registered, continue")
+                    startHeartbeat()
+                } else {
+                    Log.e(TAG, "registerListener failed", error)
+                    SyncState.bandConnected = false
+                    BandStateBus.notify(false)
+                }
+            }
     }
 
     fun register(broker: MessageBroker) {
@@ -166,36 +200,24 @@ object InterconnectBridge {
             }
     }
 
-    private fun registerListener(node: Node) {
-        val messageApi = messageApi ?: return
-        messageApi.addListener(node.id, messageListener)
-            .addOnSuccessListener {
-                Log.d(TAG, "registerListener ok")
-                startHeartbeat()
-            }
-            .addOnFailureListener { error ->
-                val msg = error.message.orEmpty()
-                if (msg.contains("You have registered", ignoreCase = true)) {
-                    Log.w(TAG, "listener already registered, continue")
-                    startHeartbeat()
-                } else {
-                    Log.e(TAG, "registerListener failed", error)
-                    SyncState.bandConnected = false
-                    BandStateBus.notify(false)
-                }
-            }
-    }
-
-    /**
+/**
      * 将同步器产生的 JSON 帧发送到已连接的手环。
      * 不依赖 bandConnected（心跳 ping 需在未确认前也能发送），仅要求已发现节点。
      */
     fun sendToBand(frame: String) {
-        val node = currentNode ?: return
-        val messageApi = messageApi ?: return
-        messageApi.sendMessage(node.id, frame.toByteArray(StandardCharsets.UTF_8))
-            .addOnSuccessListener { Log.d(TAG, "sendToBand ok") }
-            .addOnFailureListener { e -> Log.e(TAG, "sendToBand failed", e) }
+        val node = currentNode ?: run {
+            Log.e(TAG, "sendToBand skipped: no connected node. frame=${frame.take(80)}")
+            return
+        }
+        val messageApi = messageApi ?: run {
+            Log.e(TAG, "sendToBand skipped: messageApi null")
+            return
+        }
+        val bytes = frame.toByteArray(StandardCharsets.UTF_8)
+        Log.d(TAG, "sendToBand frame bytes=${bytes.size}: ${frame.take(80)}")
+        messageApi.sendMessage(node.id, bytes)
+            .addOnSuccessListener { Log.d(TAG, "sendToBand ok (${bytes.size}B)") }
+            .addOnFailureListener { e -> Log.e(TAG, "sendToBand failed (${bytes.size}B): ${e.message}", e) }
     }
 
     /** 收到手环 pong：确认真实在线并重置超时计时。 */
