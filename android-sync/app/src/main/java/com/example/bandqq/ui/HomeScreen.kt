@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import top.yukonga.miuix.kmp.basic.SmallTitle
 
 @Composable
-fun HomeScreen(bandConnected: Boolean) {
+fun HomeScreen() {
     SmallTitle(
         text = "主页：手环连接 / SnowLuma 状态 / 同步开关",
         modifier = Modifier.fillMaxSize(),
