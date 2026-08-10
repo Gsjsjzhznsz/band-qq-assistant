@@ -21,6 +21,15 @@ fun useBandConnected(): State<Boolean> {
     return state
 }
 
+@Composable
+fun useOneBotConnected(refreshKey: Int): State<Boolean> {
+    val state = remember { mutableStateOf(SyncState.oneBotConnected) }
+    remember(refreshKey) {
+        state.value = SyncState.oneBotConnected
+    }
+    return state
+}
+
 fun toast(context: Context, msg: String) {
     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 }
