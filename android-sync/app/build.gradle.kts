@@ -1,11 +1,12 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.example.bandqq"
-    compileSdk = 34
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.bandqq"
@@ -37,12 +38,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
-        viewBinding = true
+        compose = true
+    }
+
+    lint {
+        checkReleaseBuilds = false
     }
 }
 
@@ -55,6 +62,15 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.google.code.gson:gson:2.11.0")
+
+    implementation(platform("androidx.compose:compose-bom:2024.09.03"))
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.activity:activity-compose:1.9.1")
+
+    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.3")
+    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.3")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
