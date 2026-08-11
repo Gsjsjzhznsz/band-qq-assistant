@@ -378,7 +378,7 @@ fun LogPanel(modifier: Modifier = Modifier) {
                     text = if (filter == null) "全部" else filter,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(MiuixTheme.colorScheme.secondaryContainer)
+                        .background(MiuixTheme.colorScheme.surfaceContainer)
                         .clickable { filter = null }
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                     color = MiuixTheme.colorScheme.primary,
@@ -453,7 +453,7 @@ private fun LogLine(entry: LogEntry) {
             text = " [${entry.tag}] ",
             color = when (entry.level) {
                 LogLevel.ERROR -> MiuixTheme.colorScheme.error
-                LogLevel.WARN -> MiuixTheme.colorScheme.tertiary
+                LogLevel.WARN -> MiuixTheme.colorScheme.primaryVariant
                 else -> MiuixTheme.colorScheme.primary
             },
         )
@@ -466,7 +466,7 @@ private fun LogLine(entry: LogEntry) {
 
 - [ ] **Step 2: 校验**
 
-Run: 无 gradle 环境，人工检查 API 名称（`MiuixTheme.colorScheme.surfaceContainer / secondaryContainer / tertiary / onPrimary / error` 均为 Miuix 0.9.3 的 MiuixColorScheme 成员，如有缺失改用已确认存在的 `onSurfaceSecondary`）。为降低风险，将上述不确定字段在实现时逐一 grep `MiuixColorScheme` 定义确认。
+Run: 无 gradle 环境，人工检查 API 名称。**Pre-flight 已确认**（Miuix 官方 Color System 文档 + MD3→Miuix 映射表）：`surfaceContainer`、`onPrimary`、`error`、`primaryVariant`、`onSurfaceSecondary` 均为 Miuix 0.9.3 的 MiuixColorScheme 成员；`tertiary` 不存在（对应 `primaryVariant`），`secondaryContainer` 不存在（仅 `secondaryContainerVariant`，但用 `surfaceContainer` 取代更贴合视觉）。
 
 - [ ] **Step 3: 提交**
 
@@ -702,8 +702,8 @@ private fun StatusCard(
 ```
 
 **注意（编译风险点）**：
-- `EnterReveal` 中使用 `Modifier.graphicsLayer`，需 import `androidx.compose.ui.graphics.graphicsLayer`。该写法实现入场动效。
-- `MiuixTheme.colorScheme.surfaceContainer / secondaryContainer / tertiary / onPrimary / error` 若 Miuix 0.9.3 不存在，回退用已有 `onSurfaceSecondary`（实现时 grep 确认）。
+- `EnterReveal` 计划原为 `Box` 包裹 `content` 的组合形式，但 `StatusCard(modifier = Modifier.weight(1f))` 在 `content` lambda 内会脱离 `RowScope`/`ColumnScope`，`weight` 无法编译。**实现偏差**：改为 `private fun Modifier.enterReveal(entered: Boolean, delayMs: Int): Modifier = composed { ... }`，在调用点直接 `Modifier.weight(1f).enterReveal(entered, ...)`，行为等价（淡入+上移，tween 300 + delay）。
+- `MiuixTheme.colorScheme.surfaceContainer / onPrimary / error / primaryVariant` 已由 pre-flight 确认存在于 Miuix 0.9.3；本任务仅使用已确认字段。
 - `LogPanel(modifier = Modifier.weight(1f).fillMaxWidth())`：`weight` 只在 `ColumnScope` 中可用，HomeScreen 的 Column 是默认作用域，OK。
 
 - [ ] **Step 2: 校验**
