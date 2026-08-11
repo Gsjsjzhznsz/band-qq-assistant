@@ -14,5 +14,9 @@ build/
 *.iml
 .gradle/
 
-# ÒÀÀµ
+# å¼€å‘ worktree
+.worktrees/
+.superpowers/
+
+# ï¿½ï¿½ï¿½ï¿½
 node_modules/
