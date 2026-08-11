@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,9 @@ fun HistoryScreen() {
 
     var detailConv by remember { mutableStateOf<ConversationInfo?>(null) }
 
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -73,10 +77,11 @@ fun HistoryScreen() {
                 color = MiuixTheme.colorScheme.onSurfaceSecondary,
             )
         }
-        conversations.forEach { conv ->
+        conversations.forEachIndexed { index, conv ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .listItemReveal(entered, index)
                     .clickable { detailConv = conv },
                 colors = CardDefaults.defaultColors(),
             ) {
