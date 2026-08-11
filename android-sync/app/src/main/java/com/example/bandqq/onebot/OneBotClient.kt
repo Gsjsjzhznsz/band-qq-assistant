@@ -1,7 +1,9 @@
 package com.example.bandqq.onebot
 
-import android.util.Log
 import com.example.bandqq.config.EndpointConfig
+import com.example.bandqq.sync.LogBus
+import com.example.bandqq.sync.LogLevel
+import com.example.bandqq.sync.MessageSender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,7 +74,7 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
                     try {
                         connectOnce()
                     } catch (e: Exception) {
-                        Log.w("OneBotClient", "connect failed", e)
+                        LogBus.log("OneBotClient", LogLevel.WARN, "connect failed: $e")
                     }
                     delay(5000)
                 } else {
@@ -91,22 +93,22 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
         ws = client.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected = true
-                Log.d("OneBotClient", "WS onOpen, connected=$connected")
+                LogBus.log("OneBotClient", LogLevel.DEBUG, "WS onOpen, connected=$connected")
                 listener?.onState(true)
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.d("OneBotClient", "WS recv: ${text.take(300)}")
+                LogBus.log("OneBotClient", LogLevel.DEBUG, "WS recv: ${text.take(300)}")
                 val msg = parser.parseMessageEvent(text)
                 if (msg == null) {
-                    Log.w("OneBotClient", "WS msg parse -> null (may be meta/heartbeat)")
+                    LogBus.log("OneBotClient", LogLevel.WARN, "WS msg parse -> null (may be meta/heartbeat)")
                 } else {
                     listener?.onEvent(msg)
                 }
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                Log.w("OneBotClient", "WS recv binary bytes (ignored)")
+                LogBus.log("OneBotClient", LogLevel.WARN, "WS recv binary bytes (ignored)")
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -140,7 +142,7 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
                 .build()
             client.newCall(request).enqueue(object : okhttp3.Callback {
                 override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                    try { Log.e("OneBotClient", "send failed: $url", e) } catch (t: Throwable) {}
+                    try { LogBus.log("OneBotClient", LogLevel.ERROR, "send failed: $url: $e") } catch (t: Throwable) {}
                     onFail()
                 }
 
@@ -149,10 +151,10 @@ class OneBotClient(private val parser: OneBotParser) : MessageSender {
                         val resp = it.body?.string() ?: ""
                         if (it.isSuccessful) {
                             // OneBot 返回 HTTP 200，但业务可能失败（retcode != 0），记录下来便于定位
-                            try { Log.d("OneBotClient", "send ok(${it.code}) $url -> $resp") } catch (t: Throwable) {}
+                            try { LogBus.log("OneBotClient", LogLevel.DEBUG, "send ok(${it.code}) $url -> $resp") } catch (t: Throwable) {}
                             callback(true)
                         } else {
-                            try { Log.e("OneBotClient", "send http ${it.code} $url -> $resp") } catch (t: Throwable) {}
+                            try { LogBus.log("OneBotClient", LogLevel.ERROR, "send http ${it.code} $url -> $resp") } catch (t: Throwable) {}
                             onFail()
                         }
                     }
