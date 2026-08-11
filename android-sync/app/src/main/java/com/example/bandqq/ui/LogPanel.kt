@@ -51,7 +51,11 @@ fun LogPanel(modifier: Modifier = Modifier) {
 
     LaunchedEffect(filtered.size) {
         if (filtered.isNotEmpty()) {
-            scrollState.animateScrollTo(Int.MAX_VALUE)
+            val atBottom = scrollState.maxValue == 0 ||
+                scrollState.value >= scrollState.maxValue - 200
+            if (atBottom) {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
         }
     }
 
