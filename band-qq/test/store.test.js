@@ -34,12 +34,16 @@ describe('store', () => {
     assert.equal(msgs[0].sender_name, 'A')
   })
 
-  it('setMessages 覆盖历史', async () => {
+  it('setMessages 按 time+content 合并去重', async () => {
     const list = [{ message_type: 'group', sender_id: '2', sender_name: 'B', content: '旧', time: 1700000000 }]
     await store.setMessages('200', list)
     assert.equal((await store.getMessages('200')).length, 1)
+    // 已有消息 + 空历史：合并保留已有，不覆盖丢失
     await store.setMessages('200', [])
-    assert.deepEqual(await store.getMessages('200'), [])
+    assert.equal((await store.getMessages('200')).length, 1)
+    // 同 time+content 的历史不产生重复
+    await store.setMessages('200', list)
+    assert.equal((await store.getMessages('200')).length, 1)
   })
 
   it('setConversations 覆盖列表', async () => {

@@ -61,7 +61,40 @@ class MessageBroker(
                 val messageType = obj.get("message_type")?.asString ?: "private"
                 val targetId = obj.get("target_id")?.asString ?: return false
                 val content = obj.get("content")?.asString ?: ""
+                val frameTime = obj.get("time")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
+                val sendTime = if (frameTime != null && frameTime > 0) frameTime else System.currentTimeMillis()
                 oneBot.sendMessage(messageType, targetId, content)
+                // 记录自己发送的消息，保证手机端历史与会话完整性
+                store.addMessage(
+                    targetId,
+                    StoredMessage(
+                        messageType = messageType,
+                        senderId = "self",
+                        senderName = "我",
+                        content = content,
+                        time = sendTime,
+                        isSelf = true
+                    )
+                )
+                MessageBus.notify(targetId)
+                // 回推手环：与手环本地回显相同 time，upsertMessage 按 time|content 去重不会重复显示
+                val visible = store.isVisibleContact(targetId)
+                val targetName = store.conversationName(targetId, messageType, store.contactName(targetId))
+                bandSender(
+                    parser.toHandBandFrame(
+                        OneBotMessage(
+                            messageType = messageType,
+                            targetId = targetId,
+                            senderId = "self",
+                            senderName = "我",
+                            content = content,
+                            time = sendTime,
+                            isSelf = true
+                        ),
+                        visible = visible,
+                        targetName = targetName
+                    )
+                )
                 return true
             }
             "get_history" -> {
@@ -117,6 +150,9 @@ class MessageBroker(
     }
 
     override fun onEvent(message: OneBotMessage) {
+        // 开启"上报自身信息"时 OneBot 会回推自己发的消息：
+        // 私聊场景 targetId=senderId=selfId 会落进机器人自己的会话，且该消息已由 send_message 分支记录并回推，故跳过
+        if (message.isSelf) return
         val frame = handleOneBotEvent(message) ?: return
         bandSender(frame)
     }

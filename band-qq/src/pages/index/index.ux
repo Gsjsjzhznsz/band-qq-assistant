@@ -62,16 +62,27 @@
       this.loadVisibleContacts()
     },
     onInit() {
-      this.$app.$def.on('conversations', () => this.refreshConversations())
-      this.$app.$def.on('visible_contacts', () => this.refreshConversations())
-      this.$app.$def.on('message', () => this.refreshConversations())
-      this.$app.$def.on('state', () => this.refreshStatus())
+      const def = this.$app.$def
+      this._handlers = {
+        conversations: () => this.refreshConversations(),
+        visible_contacts: () => this.refreshConversations(),
+        message: () => this.refreshConversations(),
+        state: () => this.refreshStatus()
+      }
+      def.on('conversations', this._handlers.conversations)
+      def.on('visible_contacts', this._handlers.visible_contacts)
+      def.on('message', this._handlers.message)
+      def.on('state', this._handlers.state)
     },
     onDestroy() {
-      this.$app.$def.off('conversations')
-      this.$app.$def.off('visible_contacts')
-      this.$app.$def.off('message')
-      this.$app.$def.off('state')
+      const def = this.$app.$def
+      if (this._handlers) {
+        def.off('conversations', this._handlers.conversations)
+        def.off('visible_contacts', this._handlers.visible_contacts)
+        def.off('message', this._handlers.message)
+        def.off('state', this._handlers.state)
+        this._handlers = null
+      }
     },
     async pullConnectState() {
       const api = this.$app.$def.api

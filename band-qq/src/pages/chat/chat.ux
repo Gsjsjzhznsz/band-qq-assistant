@@ -34,7 +34,7 @@
   .send-status-text { font-size: 16px; color: #0d84ff; }
   .page-title { font-size: 22px; color: #ffffff; }
   .new-dot { width: 14px; height: 14px; border-radius: 7px; background-color: #ff5a5a; margin-left: 10px; }
-  .msg-area { flex: 1; height: 288px; }
+  .msg-area { flex: 1; height: 288px; flex-direction: column; }
   .msg-item { width: 192px; padding: 0 8px; margin-top: 10px; flex-direction: row; flex-shrink: 0; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
@@ -87,21 +87,32 @@
       console.log('[BANDQQ] v13 chat resolved target=', targetId)
       this.targetId = targetId
       this.name = convName || '聊天'
-      this.$app.$def.on('message', () => this.loadMessages())
-      this.$app.$def.on('history', (msg) => {
-        if (msg.target_id === this.targetId) this.loadMessages()
-      })
-      this.$app.$def.on('cleared', () => this.loadMessages())
-      this.$app.$def.on('send_status', () => this.refreshSendStatus())
+      const def = this.$app.$def
+      this._handlers = {
+        message: () => this.loadMessages(),
+        history: (msg) => {
+          if (msg.target_id === this.targetId) this.loadMessages()
+        },
+        cleared: () => this.loadMessages(),
+        send_status: () => this.refreshSendStatus()
+      }
+      def.on('message', this._handlers.message)
+      def.on('history', this._handlers.history)
+      def.on('cleared', this._handlers.cleared)
+      def.on('send_status', this._handlers.send_status)
       this.requestHistory()
       this.loadMessages()
       this.refreshSendStatus()
     },
     onDestroy() {
-      this.$app.$def.off('message')
-      this.$app.$def.off('history')
-      this.$app.$def.off('cleared')
-      this.$app.$def.off('send_status')
+      const def = this.$app.$def
+      if (this._handlers) {
+        def.off('message', this._handlers.message)
+        def.off('history', this._handlers.history)
+        def.off('cleared', this._handlers.cleared)
+        def.off('send_status', this._handlers.send_status)
+        this._handlers = null
+      }
     },
     refreshSendStatus() {
       const store = this.$app.$def.store

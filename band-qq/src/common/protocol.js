@@ -11,7 +11,8 @@ function sendMessage(messageType, targetId, content) {
     seq: nextSeq(),
     message_type: messageType,
     target_id: targetId,
-    content: content
+    content: content,
+    time: Date.now()
   }
 }
 

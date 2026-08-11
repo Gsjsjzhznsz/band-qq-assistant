@@ -266,6 +266,12 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
     fun isVisibleContact(id: String): Boolean = visibleContacts.any { it.id == id }
 
+    /** 按 id 查找联系人/群显示名（优先可见联系人，再找缓存联系人），找不到返回空串 */
+    fun contactName(id: String): String {
+        val hit = (visibleContacts + cachedContacts).firstOrNull { it.id == id }
+        return hit?.name ?: ""
+    }
+
     fun buildVisibleContactsFrame(seq: Int): String {
         val obj = JsonObject()
         obj.addProperty("type", "visible_contacts")
