@@ -17,6 +17,6 @@
 - [x] Task 3 底部导航壳 + 四页面骨架（`MainScreen` + 底部导航 + 四页面骨架，BUILD SUCCESSFUL）
 - [x] Task 4 主页 HomeScreen
 - [x] Task 5 联系人 ContactScreen
-- [ ] Task 6 聊天记录 HistoryScreen + 会话详情
+- [x] Task 6 聊天记录 HistoryScreen + 会话详情
 - [ ] Task 7 设置 SettingsScreen
 - [ ] Task 8 删除旧 View 层 + 全局验收
