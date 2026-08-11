@@ -1,5 +1,7 @@
 # 实施进度
 
+> Miuix 0.9.3 UI 重构完成，业务层未改动，APK v3.0 已生成。
+
 ## 工具链锁定（Task 1 实际达成，高于计划预期）
 - Kotlin: **2.4.10**（计划 2.0.21 → miuix 0.9.3 需元数据 2.4.0+，已升）
 - Compose: compose-bom 2024.09.03 + miuix 0.9.3（androidx compose 1.11.2）
@@ -19,4 +21,4 @@
 - [x] Task 5 联系人 ContactScreen
 - [x] Task 6 聊天记录 HistoryScreen + 会话详情
 - [x] Task 7 设置 SettingsScreen
-- [ ] Task 8 删除旧 View 层 + 全局验收
+- [x] Task 8 删除旧 View 层 + 全局验收（BUILD SUCCESSFUL，66 个 JVM 测试全绿，APK v3.0 已生成）
