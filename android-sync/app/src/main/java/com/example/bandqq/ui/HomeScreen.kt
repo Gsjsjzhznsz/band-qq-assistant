@@ -8,6 +8,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +60,7 @@ fun HomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -127,7 +130,12 @@ fun HomeScreen() {
             ) { Text("测试 SnowLuma 连接") }
         }
 
-        LogPanel(modifier = Modifier.weight(1f).fillMaxWidth().enterReveal(entered, delayMs = 300))
+        LogPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(360.dp)
+                .enterReveal(entered, delayMs = 300),
+        )
     }
 }
 
