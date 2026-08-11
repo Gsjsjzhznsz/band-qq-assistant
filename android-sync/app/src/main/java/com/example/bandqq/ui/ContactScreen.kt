@@ -52,14 +52,12 @@ fun ContactScreen() {
     var activeType by remember { mutableStateOf("private") }
     var refreshKey by remember { mutableStateOf(0) }
 
-    fun contacts(): List<VisibleContact> {
+    fun contactsFor(type: String): List<VisibleContact> {
         val all = store?.getCachedContacts() ?: emptyList()
-        return all.filter { it.type == activeType }
+        return all.filter { it.type == type }
     }
     val visibleIds = remember(refreshKey) { (store?.getVisibleContacts() ?: emptyList()).map { it.id }.toSet() }
     var selected by remember { mutableStateOf(visibleIds) }
-    var entered by remember(activeType) { mutableStateOf(false) }
-    LaunchedEffect(activeType) { entered = true }
 
     Column(
         modifier = Modifier
@@ -119,9 +117,11 @@ fun ContactScreen() {
             transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
             label = "contactType",
         ) { type ->
+            var entered by remember(type) { mutableStateOf(false) }
+            LaunchedEffect(type) { entered = true }
             Column {
                 SmallTitle(text = if (type == "private") "私聊联系人" else "群聊联系人")
-                contacts().forEachIndexed { index, c ->
+                contactsFor(type).forEachIndexed { index, c ->
                     Card(
                         modifier = Modifier.fillMaxWidth().listItemReveal(entered, index),
                         colors = CardDefaults.defaultColors(),
@@ -157,7 +157,7 @@ fun ContactScreen() {
                     toast(context, "同步服务尚未启动，请先启动同步")
                     return@TextButton
                 }
-                val checkedList = contacts().filter { it.id in selected }
+                val checkedList = contactsFor(activeType).filter { it.id in selected }
                 val merged = s.getVisibleContacts().filter { it.type != activeType } + checkedList
                 s.setVisibleContacts(merged)
                 if (InterconnectBridge.available && InterconnectBridge.isNodeReady()) {

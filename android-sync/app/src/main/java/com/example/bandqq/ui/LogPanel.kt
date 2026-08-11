@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.bandqq.sync.LogBus
 import com.example.bandqq.sync.LogEntry
 import com.example.bandqq.sync.LogLevel
+import kotlinx.coroutines.flow.collect
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
@@ -48,13 +50,32 @@ fun LogPanel(modifier: Modifier = Modifier) {
         if (filter == null) logs else logs.filter { it.tag == filter }
     }
     val scrollState = rememberScrollState()
+    var userScrolledAway by remember { mutableStateOf(false) }
+    var autoScrolling by remember { mutableStateOf(false) }
+
+    LaunchedEffect(scrollState) {
+        snapshotFlow { scrollState.value }
+            .collect { value ->
+                val maxValue = scrollState.maxValue
+                if (maxValue > 0) {
+                    val nearBottom = value >= maxValue - 200
+                    if (nearBottom) {
+                        userScrolledAway = false
+                    } else if (scrollState.isScrollInProgress && !autoScrolling) {
+                        userScrolledAway = true
+                    }
+                }
+            }
+    }
 
     LaunchedEffect(filtered.size) {
-        if (filtered.isNotEmpty()) {
-            val atBottom = scrollState.maxValue == 0 ||
-                scrollState.value >= scrollState.maxValue - 200
-            if (atBottom) {
+        if (filtered.isNotEmpty() && !userScrolledAway) {
+            autoScrolling = true
+            try {
                 scrollState.animateScrollTo(scrollState.maxValue)
+            } finally {
+                autoScrolling = false
+                userScrolledAway = false
             }
         }
     }
