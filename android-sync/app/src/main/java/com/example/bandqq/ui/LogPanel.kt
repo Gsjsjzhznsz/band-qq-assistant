@@ -149,6 +149,6 @@ private fun LogLine(entry: LogEntry) {
                 else -> MiuixTheme.colorScheme.primary
             },
         )
-        Text(text = entry.message)
+        Text(text = entry.message, modifier = Modifier.weight(1f))
     }
 }
