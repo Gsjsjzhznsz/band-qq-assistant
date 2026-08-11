@@ -1,6 +1,12 @@
 package com.example.bandqq.ui
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -8,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
@@ -49,12 +56,19 @@ fun BandQQApp() {
             }
         },
     ) { contentPadding ->
-        Box(
+        AnimatedContent(
+            targetState = selected,
+            transitionSpec = {
+                (slideInHorizontally { it / 3 } + fadeIn(tween(220)))
+                    .togetherWith(slideOutHorizontally { -it / 3 } + fadeOut(tween(180)))
+            },
+            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding),
-        ) {
-            when (selected) {
+            label = "tabSwitch",
+        ) { tab ->
+            when (tab) {
                 AppTab.Home -> HomeScreen()
                 AppTab.Contacts -> ContactScreen()
                 AppTab.History -> HistoryScreen()
