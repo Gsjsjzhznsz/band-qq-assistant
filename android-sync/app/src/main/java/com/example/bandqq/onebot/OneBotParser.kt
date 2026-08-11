@@ -1,5 +1,7 @@
 package com.example.bandqq.onebot
 
+import com.example.bandqq.sync.LogBus
+import com.example.bandqq.sync.LogLevel
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -28,7 +30,7 @@ class OneBotParser {
         val obj = try {
             JsonParser.parseString(json).asJsonObject
         } catch (e: Exception) {
-            android.util.Log.w("OneBotParser", "parse error", e)
+            LogBus.log("OneBotParser", LogLevel.WARN, "parse error: $e")
             return null
         }
         if (obj.get("post_type")?.asString != "message") return null

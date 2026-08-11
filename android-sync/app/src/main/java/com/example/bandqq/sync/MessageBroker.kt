@@ -177,9 +177,9 @@ class MessageBroker(
 
     private fun log(msg: String) {
         try {
-            android.util.Log.d("MessageBroker", msg)
-        } catch (e: Throwable) {
-            // JVM 单测环境下 android.util.Log 不可用，静默忽略
+            LogBus.log("MessageBroker", LogLevel.DEBUG, msg)
+        } catch (t: Throwable) {
+            // JVM 单测环境下不可用，静默忽略
         }
     }
 }
