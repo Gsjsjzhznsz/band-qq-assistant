@@ -1,5 +1,10 @@
 package com.example.bandqq.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +58,8 @@ fun ContactScreen() {
     }
     val visibleIds = remember(refreshKey) { (store?.getVisibleContacts() ?: emptyList()).map { it.id }.toSet() }
     var selected by remember { mutableStateOf(visibleIds) }
+    var entered by remember(activeType) { mutableStateOf(false) }
+    LaunchedEffect(activeType) { entered = true }
 
     Column(
         modifier = Modifier
@@ -106,33 +114,41 @@ fun ContactScreen() {
                 },
             )
         }
-        SmallTitle(text = if (activeType == "private") "私聊联系人" else "群聊联系人")
-        contacts().forEach { c ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.defaultColors(),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
-                        Text(text = c.name.ifBlank { c.id })
-                        Text(
-                            text = if (activeType == "private") "私聊" else "群聊",
-                            color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                        )
+        AnimatedContent(
+            targetState = activeType,
+            transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
+            label = "contactType",
+        ) { type ->
+            Column {
+                SmallTitle(text = if (type == "private") "私聊联系人" else "群聊联系人")
+                contacts().forEachIndexed { index, c ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().listItemReveal(entered, index),
+                        colors = CardDefaults.defaultColors(),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
+                                Text(text = c.name.ifBlank { c.id })
+                                Text(
+                                    text = if (type == "private") "私聊" else "群聊",
+                                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                                )
+                            }
+                            Checkbox(
+                                state = if (c.id in selected) ToggleableState.On else ToggleableState.Off,
+                                onClick = {
+                                    selected = if (c.id in selected) selected - c.id else selected + c.id
+                                },
+                            )
+                        }
                     }
-                    Checkbox(
-                        state = if (c.id in selected) ToggleableState.On else ToggleableState.Off,
-                        onClick = {
-                            selected = if (c.id in selected) selected - c.id else selected + c.id
-                        },
-                    )
                 }
+                Spacer(modifier = Modifier.padding(top = 4.dp))
             }
         }
-        Spacer(modifier = Modifier.padding(top = 4.dp))
         TextButton(
             text = "保存选中联系人到手环",
             modifier = Modifier.fillMaxWidth(),
