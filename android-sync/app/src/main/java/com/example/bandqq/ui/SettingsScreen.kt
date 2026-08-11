@@ -38,6 +38,8 @@ fun SettingsScreen() {
     var httpUrl by remember { mutableStateOf("") }
     var httpToken by remember { mutableStateOf("") }
     var loaded by remember { mutableStateOf(false) }
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(loaded) { if (loaded) entered = true }
 
     LaunchedEffect(Unit) {
         val cfg = configManager.load()
@@ -60,10 +62,22 @@ fun SettingsScreen() {
             return@Column
         }
 
-        TextField(value = wsUrl, onValueChange = { wsUrl = it }, label = "WS 地址")
-        TextField(value = wsToken, onValueChange = { wsToken = it }, label = "WS Token")
-        TextField(value = httpUrl, onValueChange = { httpUrl = it }, label = "HTTP 地址")
-        TextField(value = httpToken, onValueChange = { httpToken = it }, label = "HTTP Token")
+        TextField(
+            value = wsUrl, onValueChange = { wsUrl = it }, label = "WS 地址",
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 0),
+        )
+        TextField(
+            value = wsToken, onValueChange = { wsToken = it }, label = "WS Token",
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 1),
+        )
+        TextField(
+            value = httpUrl, onValueChange = { httpUrl = it }, label = "HTTP 地址",
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 2),
+        )
+        TextField(
+            value = httpToken, onValueChange = { httpToken = it }, label = "HTTP Token",
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 3),
+        )
 
         Button(
             onClick = {
@@ -81,7 +95,7 @@ fun SettingsScreen() {
                 }
             },
             colors = ButtonDefaults.buttonColorsPrimary(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 4),
         ) { Text("保存") }
 
         Button(
@@ -100,7 +114,7 @@ fun SettingsScreen() {
                 }
             },
             colors = ButtonDefaults.buttonColors(),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().listItemReveal(entered, 5),
         ) { Text("测试连接") }
     }
 }
