@@ -41,7 +41,8 @@ fun HistoryScreen() {
     val context = LocalContext.current
     var refresh by remember { mutableStateOf(0) }
     val conversations = remember(refresh) { StoreHolder.store?.getConversations() ?: emptyList() }
-    val listener: (String) -> Unit = remember { { _ -> refresh++ } }
+    val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
+    val listener: (String) -> Unit = remember { { _ -> mainHandler.post { refresh++ } } }
     DisposableEffect(Unit) {
         MessageBus.add(listener)
         onDispose { MessageBus.remove(listener) }

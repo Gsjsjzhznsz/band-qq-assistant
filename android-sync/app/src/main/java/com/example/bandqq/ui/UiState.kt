@@ -14,7 +14,10 @@ import com.example.bandqq.sync.SyncState
 fun useBandConnected(): State<Boolean> {
     val state = remember { mutableStateOf(SyncState.bandConnected) }
     DisposableEffect(Unit) {
-        val listener: (Boolean) -> Unit = { connected -> state.value = connected }
+        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        val listener: (Boolean) -> Unit = { connected ->
+            mainHandler.post { state.value = connected }
+        }
         BandStateBus.add(listener)
         onDispose { BandStateBus.remove(listener) }
     }
