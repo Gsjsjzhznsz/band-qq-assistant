@@ -67,7 +67,7 @@ fun LogPanel(modifier: Modifier = Modifier) {
             Text(text = "实时日志", color = MiuixTheme.colorScheme.onSurfaceSecondary)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = if (filter == null) "全部" else filter,
+                    text = filter ?: "全部",
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(MiuixTheme.colorScheme.surfaceContainer)

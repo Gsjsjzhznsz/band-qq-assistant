@@ -20,7 +20,6 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
-import com.example.bandqq.sync.MessageSender
 import java.util.concurrent.TimeUnit
 
 interface OneBotListener {
