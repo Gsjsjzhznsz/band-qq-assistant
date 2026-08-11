@@ -18,5 +18,5 @@
 - [x] Task 4 主页 HomeScreen
 - [x] Task 5 联系人 ContactScreen
 - [x] Task 6 聊天记录 HistoryScreen + 会话详情
-- [ ] Task 7 设置 SettingsScreen
+- [x] Task 7 设置 SettingsScreen
 - [ ] Task 8 删除旧 View 层 + 全局验收
