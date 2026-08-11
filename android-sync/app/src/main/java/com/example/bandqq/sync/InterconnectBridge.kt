@@ -1,7 +1,6 @@
 package com.example.bandqq.sync
 
 import android.content.Context
-import android.util.Log
 import com.xiaomi.xms.wearable.Wearable
 import com.xiaomi.xms.wearable.auth.AuthApi
 import com.xiaomi.xms.wearable.auth.Permission
@@ -68,10 +67,10 @@ object InterconnectBridge {
     private val messageListener = OnMessageReceivedListener { _, data ->
         try {
             val json = String(data, StandardCharsets.UTF_8)
-            Log.d(TAG, "onBandMessage: $json")
+            LogBus.log(TAG, LogLevel.DEBUG, "onBandMessage: $json")
             broker?.onBandFrame(json)
         } catch (e: Exception) {
-            Log.e(TAG, "onBandMessage parse error", e)
+            LogBus.log(TAG, LogLevel.ERROR, "onBandMessage parse error: $e")
         }
     }
 
@@ -82,22 +81,22 @@ object InterconnectBridge {
         val messageApi = messageApi ?: return
         // 幂等：若该节点已注册过则先移除旧 listener，确保不会叠加多个回调
         if (registeredNodes.remove(node.id)) {
-            Log.d(TAG, "registerListener idempotent remove old listener for ${node.id}")
+            LogBus.log(TAG, LogLevel.DEBUG, "registerListener idempotent remove old listener for ${node.id}")
             messageApi.removeListener(node.id)
         }
         messageApi.addListener(node.id, messageListener)
             .addOnSuccessListener {
                 registeredNodes.add(node.id)
-                Log.d(TAG, "registerListener ok")
+                LogBus.log(TAG, LogLevel.DEBUG, "registerListener ok")
                 startHeartbeat()
             }
             .addOnFailureListener { error ->
                 val msg = error.message.orEmpty()
                 if (msg.contains("You have registered", ignoreCase = true)) {
-                    Log.w(TAG, "listener already registered, continue")
+                    LogBus.log(TAG, LogLevel.WARN, "listener already registered, continue")
                     startHeartbeat()
                 } else {
-                    Log.e(TAG, "registerListener failed", error)
+                    LogBus.log(TAG, LogLevel.ERROR, "registerListener failed: $error")
                     SyncState.bandConnected = false
                     BandStateBus.notify(false)
                 }
@@ -130,7 +129,7 @@ object InterconnectBridge {
             authApi = Wearable.getAuthApi(context)
             messageApi = Wearable.getMessageApi(context)
         } catch (e: Throwable) {
-            Log.e(TAG, "init xms-wearable-lib failed", e)
+            LogBus.log(TAG, LogLevel.ERROR, "init xms-wearable-lib failed: $e")
             available = false
         }
     }
@@ -138,7 +137,7 @@ object InterconnectBridge {
     /** 异步建立与手环的互联连接：发现设备 -> 鉴权 -> 拉起应用 -> 注册监听 */
     fun connect() {
         val nodeApi = nodeApi ?: run {
-            Log.e(TAG, "connect: not initialized")
+            LogBus.log(TAG, LogLevel.ERROR, "connect: not initialized")
             SyncState.bandConnected = false
             BandStateBus.notify(false)
             return
@@ -146,17 +145,17 @@ object InterconnectBridge {
         nodeApi.connectedNodes
             .addOnSuccessListener { nodes ->
                 if (nodes.isEmpty()) {
-                    Log.w(TAG, "connect: 未发现已连接的手环，请确认小米运动健康已连接手环")
+                    LogBus.log(TAG, LogLevel.WARN, "connect: 未发现已连接的手环，请确认小米运动健康已连接手环")
                     SyncState.bandConnected = false
                     BandStateBus.notify(false)
                     return@addOnSuccessListener
                 }
                 currentNode = nodes[0]
-                Log.d(TAG, "connect: found device ${nodes[0].name}")
+                LogBus.log(TAG, LogLevel.DEBUG, "connect: found device ${nodes[0].name}")
                 auth(nodes[0])
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "connect: getConnectedNodes failed", e)
+                LogBus.log(TAG, LogLevel.ERROR, "connect: getConnectedNodes failed: $e")
                 SyncState.bandConnected = false
                 BandStateBus.notify(false)
             }
@@ -170,18 +169,18 @@ object InterconnectBridge {
                 for ((_, value) in results.withIndex()) {
                     if (!value) {
                         authApi.requestPermission(node.id, Permission.DEVICE_MANAGER)
-                            .addOnFailureListener { e -> Log.e(TAG, "auth request failed", e) }
+                            .addOnFailureListener { e -> LogBus.log(TAG, LogLevel.ERROR, "auth request failed: $e") }
                         needRequest = true
                     }
                 }
                 if (needRequest) {
-                    Log.d(TAG, "auth: 已请求 DEVICE_MANAGER 权限，等待用户在运动健康中授权")
+                    LogBus.log(TAG, LogLevel.DEBUG, "auth: 已请求 DEVICE_MANAGER 权限，等待用户在运动健康中授权")
                 }
                 // 无论本次结果如何，继续尝试后续流程；连接真正可用取决于授权完成
                 openApp(node)
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "auth check failed", e)
+                LogBus.log(TAG, LogLevel.ERROR, "auth check failed: $e")
                 openApp(node)
             }
     }
@@ -190,11 +189,11 @@ object InterconnectBridge {
         val nodeApi = nodeApi ?: return
         nodeApi.launchWearApp(node.id, WEAR_ENTRY_ROUTE)
             .addOnSuccessListener {
-                Log.d(TAG, "openApp: 已在手环上拉起应用")
+                LogBus.log(TAG, LogLevel.DEBUG, "openApp: 已在手环上拉起应用")
                 registerListener(node)
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "openApp failed", e)
+                LogBus.log(TAG, LogLevel.ERROR, "openApp failed: $e")
                 // 手环端可能未安装应用或未在前台；仍注册监听以便手环侧主动连接
                 registerListener(node)
             }
@@ -206,18 +205,18 @@ object InterconnectBridge {
      */
     fun sendToBand(frame: String) {
         val node = currentNode ?: run {
-            Log.e(TAG, "sendToBand skipped: no connected node. frame=${frame.take(80)}")
+            LogBus.log(TAG, LogLevel.ERROR, "sendToBand skipped: no connected node. frame=${frame.take(80)}")
             return
         }
         val messageApi = messageApi ?: run {
-            Log.e(TAG, "sendToBand skipped: messageApi null")
+            LogBus.log(TAG, LogLevel.ERROR, "sendToBand skipped: messageApi null")
             return
         }
         val bytes = frame.toByteArray(StandardCharsets.UTF_8)
-        Log.d(TAG, "sendToBand frame bytes=${bytes.size}: ${frame.take(80)}")
+        LogBus.log(TAG, LogLevel.DEBUG, "sendToBand frame bytes=${bytes.size}: ${frame.take(80)}")
         messageApi.sendMessage(node.id, bytes)
-            .addOnSuccessListener { Log.d(TAG, "sendToBand ok (${bytes.size}B)") }
-            .addOnFailureListener { e -> Log.e(TAG, "sendToBand failed (${bytes.size}B): ${e.message}", e) }
+            .addOnSuccessListener { LogBus.log(TAG, LogLevel.DEBUG, "sendToBand ok (${bytes.size}B)") }
+            .addOnFailureListener { e -> LogBus.log(TAG, LogLevel.ERROR, "sendToBand failed (${bytes.size}B): ${e.message}") }
     }
 
     /** 收到手环 pong：确认真实在线并重置超时计时。 */
