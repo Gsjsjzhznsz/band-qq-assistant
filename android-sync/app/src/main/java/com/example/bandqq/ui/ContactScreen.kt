@@ -89,6 +89,7 @@ fun ContactScreen() {
                         return@TextButton
                     }
                     val client = OneBotClient(OneBotParser())
+                    client.configure(ConfigHolder.config.endpoint)
                     val http = ConfigHolder.config.endpoint.httpUrl
                     client.requestApi("get_friend_list", http) { raw ->
                         scope.launch(Dispatchers.Main) {
