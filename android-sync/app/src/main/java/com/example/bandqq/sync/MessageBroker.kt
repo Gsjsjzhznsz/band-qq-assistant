@@ -64,13 +64,15 @@ class MessageBroker(
                 val frameTime = obj.get("time")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
                 val sendTime = if (frameTime != null && frameTime > 0) frameTime else System.currentTimeMillis()
                 oneBot.sendMessage(messageType, targetId, content)
-                // 记录自己发送的消息，保证手机端历史与会话完整性
+                // 记录自己发送的消息，保证手机端历史与会话完整性。
+                // 会话名以目标联系人的真实名称为准，避免落成"我"导致会话列表出现"我"
+                val selfSenderName = store.contactName(targetId).ifBlank { targetId }
                 store.addMessage(
                     targetId,
                     StoredMessage(
                         messageType = messageType,
-                        senderId = "self",
-                        senderName = "我",
+                        senderId = targetId,
+                        senderName = selfSenderName,
                         content = content,
                         time = sendTime,
                         isSelf = true
@@ -79,14 +81,14 @@ class MessageBroker(
                 MessageBus.notify(targetId)
                 // 回推手环：与手环本地回显相同 time，upsertMessage 按 time|content 去重不会重复显示
                 val visible = store.isVisibleContact(targetId)
-                val targetName = store.conversationName(targetId, messageType, store.contactName(targetId))
+                val targetName = store.conversationName(targetId, messageType, selfSenderName)
                 bandSender(
                     parser.toHandBandFrame(
                         OneBotMessage(
                             messageType = messageType,
                             targetId = targetId,
-                            senderId = "self",
-                            senderName = "我",
+                            senderId = targetId,
+                            senderName = selfSenderName,
                             content = content,
                             time = sendTime,
                             isSelf = true

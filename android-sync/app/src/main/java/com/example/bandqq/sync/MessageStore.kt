@@ -168,6 +168,15 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
             val cached = cachedContacts.firstOrNull { it.type == "group" && it.id == targetId }
             if (cached != null && cached.name.isNotBlank()) return cached.name
         }
+        // 历史数据中 self 消息 senderName 可能为"我"，此时会话名不应显示"我"，
+        // 优先用联系人缓存名，其次是回退 targetId
+        if (fallback == "我" || fallback == "self") {
+            val contact = contactName(targetId)
+            if (contact.isNotBlank()) return contact
+            val cached = cachedContacts.firstOrNull { it.id == targetId }
+            if (cached != null && cached.name.isNotBlank()) return cached.name
+            return targetId
+        }
         return fallback.ifBlank { targetId }
     }
 
