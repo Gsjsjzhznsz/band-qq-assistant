@@ -27,7 +27,7 @@
   .page { flex-direction: column; background-color: #000000; height: 466px; }
   .top-row { height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
-  .btn-back { width: 48px; height: 34px; }
+  .btn-back { width: 102px; height: 72px; }
   .title-bar { height: 34px; flex-direction: row; align-items: center; justify-content: center; }
   .send-status { height: 26px; flex-direction: row; align-items: center; justify-content: center; }
   .send-status-text { font-size: 16px; color: #0d84ff; }
@@ -155,6 +155,8 @@
           is_self: false
         })
       }
+      // 兜底插入后按时间升序重排，避免混合 push / 历史数据的顺序错乱
+      msgs.sort((a, b) => (a.time || 0) - (b.time || 0))
       // 新消息判定：条数变多时置新消息标记（右侧红点），不自动滚动
       if (msgs.length > this.lastCount) this.hasNew = true
       this.lastCount = msgs.length

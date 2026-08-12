@@ -44,13 +44,16 @@ class OneBotParser {
         } ?: return null
         val content = degradeContent(obj.get("message"))
         val selfId = obj.get("self_id")?.let { if (it.isJsonPrimitive) it.asString else it.toString() }
+        // OneBot 标准 time 为 Unix 秒（10 位），而本地发送链路使用毫秒（Date.now() 13 位）。
+        // 统一转为毫秒，避免同一会话内秒/毫秒混排导致消息顺序跳变。
+        val rawTime = obj.get("time")?.asLong ?: 0L
         return OneBotMessage(
             messageType = messageType,
             targetId = targetId,
             senderId = senderId,
             senderName = stripEmoji(sender?.get("nickname")?.asString ?: senderId),
             content = content,
-            time = obj.get("time")?.asLong ?: 0L,
+            time = if (rawTime > 0 && rawTime < 100_000_000_000L) rawTime * 1000L else rawTime,
             isSelf = selfId != null && senderId == selfId
         )
     }

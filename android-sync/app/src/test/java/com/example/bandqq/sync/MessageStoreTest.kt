@@ -25,6 +25,26 @@ class MessageStoreTest {
     }
 
     @Test
+    fun `秒与毫秒混入时历史依旧按时间升序`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "2", "B", "第二条", 1700000001L))   // 秒 = 1700000001000ms
+        store.addMessage("123", StoredMessage("group", "1", "A", "第一条", 1700000000000L)) // 毫秒 = 1700000000s
+        store.addMessage("123", StoredMessage("group", "3", "C", "插中间", 1700000000001L)) // 毫秒，介于两者之间
+        val history = store.getHistory("123", 50)
+        assertEquals("第一条", history[0].content)
+        assertEquals("插中间", history[1].content)
+        assertEquals("第二条", history[2].content)
+    }
+
+    @Test
+    fun `同一消息重复 add 不去重也不乱序`() {
+        val store = MessageStore()
+        store.addMessage("123", StoredMessage("group", "1", "A", "x", 1700000000L))
+        store.addMessage("123", StoredMessage("group", "1", "A", "x", 1700000000L))
+        assertEquals(1, store.getHistory("123", 50).size)
+    }
+
+    @Test
     fun `history_list 帧包含消息`() {
         store.addMessage("123", StoredMessage("group", "456", "张三", "你好", 1700000000L))
         val frame = store.buildHistoryFrame("123", 50, 4)

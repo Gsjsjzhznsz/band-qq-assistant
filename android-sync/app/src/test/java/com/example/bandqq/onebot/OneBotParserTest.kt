@@ -21,7 +21,7 @@ class OneBotParserTest {
         assertEquals("456", msg?.senderId)
         assertEquals("张三", msg?.senderName)
         assertEquals("你好", msg?.content)
-        assertEquals(1700000000L, msg?.time)
+        assertEquals(1700000000000L, msg?.time)
     }
 
     @Test
@@ -82,6 +82,28 @@ class OneBotParserTest {
     fun `构建发送请求体`() {
         val body = parser.buildSendRequest("group", "123", "收到")
         assertEquals("""{"action":"send_group_msg","params":{"group_id":123,"message":"收到"}}""", body)
+    }
+
+    @Test
+    fun `OneBot 秒级 time 统一转为毫秒`() {
+        val json = """
+            {"post_type":"message","message_type":"private","user_id":"789",
+             "sender":{"nickname":"李四"},"message":[{"type":"text","data":{"text":"在吗"}}],
+             "time":1700000000,"self_id":1,"message_id":3}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals(1700000000000L, msg?.time)
+    }
+
+    @Test
+    fun `毫秒级 time 保持原值`() {
+        val json = """
+            {"post_type":"message","message_type":"private","user_id":"789",
+             "sender":{"nickname":"李四"},"message":[{"type":"text","data":{"text":"在吗"}}],
+             "time":1700000000123,"self_id":1,"message_id":3}
+        """.trimIndent()
+        val msg = parser.parseMessageEvent(json)
+        assertEquals(1700000000123L, msg?.time)
     }
 
     @Test

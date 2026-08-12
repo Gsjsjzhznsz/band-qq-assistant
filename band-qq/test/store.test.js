@@ -155,4 +155,29 @@ describe('store', () => {
     const convs = await store.getConversations()
     assert.equal(convs[0].name, '李四')
   })
+
+  it('upsert 乱序到达时消息按时间升序', async () => {
+    await store.upsertMessage({ type: 'push_message', message_type: 'private', target_id: '500', sender_id: '1', sender_name: 'A', content: 'c', time: 300 })
+    await store.upsertMessage({ type: 'push_message', message_type: 'private', target_id: '500', sender_id: '1', sender_name: 'A', content: 'a', time: 100 })
+    await store.upsertMessage({ type: 'push_message', message_type: 'private', target_id: '500', sender_id: '1', sender_name: 'A', content: 'b', time: 200 })
+    const msgs = await store.getMessages('500')
+    assert.deepEqual(msgs.map((m) => m.content), ['a', 'b', 'c'])
+  })
+
+  it('getMessages 对乱序缓存兜底排序', async () => {
+    const storage = mockStorage({})
+    const s = createStore(storage)
+    await s.init()
+    // 绕过 setMessages 的排序，直接向缓存写入乱序数据
+    await storage.set({
+      key: 'msg_cache_600',
+      value: JSON.stringify([
+        { message_type: 'private', sender_id: '1', sender_name: 'A', content: 'b', time: 200 },
+        { message_type: 'private', sender_id: '1', sender_name: 'A', content: 'a', time: 100 }
+      ]),
+      success: () => {}
+    })
+    const msgs = await s.getMessages('600')
+    assert.deepEqual(msgs.map((m) => m.content), ['a', 'b'])
+  })
 })

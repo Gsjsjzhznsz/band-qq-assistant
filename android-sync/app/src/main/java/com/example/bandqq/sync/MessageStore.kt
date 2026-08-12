@@ -42,6 +42,11 @@ class InMemoryKv : KvStorage {
 
 class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
+    companion object {
+        /** 统一时间戳为毫秒：小于 100 000 000 000（约 1973 年）视为 Unix 秒，转为毫秒。 */
+        private fun normalizeTime(t: Long): Long = if (t in 1 until 100_000_000_000L) t * 1000L else t
+    }
+
     private val MESSAGES_KEY = "chat_messages"
     private val CONVERSATIONS_KEY = "chat_conversations"
     private val VISIBLE_KEY = "visible_contacts"
@@ -78,7 +83,7 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
                             senderId = o.get("sender_id")?.asString ?: "",
                             senderName = o.get("sender_name")?.asString ?: "",
                             content = o.get("content")?.asString ?: "",
-                            time = o.get("time")?.asLong ?: 0L,
+                            time = normalizeTime(o.get("time")?.asLong ?: 0L),
                             isSelf = o.get("is_self")?.asBoolean ?: false
                         )
                     )
@@ -112,10 +117,22 @@ class MessageStore(private val storage: KvStorage = InMemoryKv()) {
 
     fun addMessage(targetId: String, msg: StoredMessage) {
         val list = messagesByTarget.getOrPut(targetId) { mutableListOf() }
-        val dedup = "$targetId|${msg.senderId}|${msg.time}|${msg.content}"
-        if (duplicates.add(dedup) || !list.any { it.time == msg.time && it.content == msg.content }) {
-            list.add(msg)
+        // 统一为毫秒，避免传入秒/毫秒混用时同会话排序错乱
+        val normalized = StoredMessage(
+            messageType = msg.messageType,
+            senderId = msg.senderId,
+            senderName = msg.senderName,
+            content = msg.content,
+            time = normalizeTime(msg.time),
+            isSelf = msg.isSelf
+        )
+        val dedup = "$targetId|${normalized.senderId}|${normalized.time}|${normalized.content}"
+        val existing = list.any { it.time == normalized.time && it.content == normalized.content }
+        if (duplicates.add(dedup) || !existing) {
+            list.add(normalized)
         }
+        // 保持按时间升序，历史帧与手环端 upsert 都依赖列表有序
+        list.sortBy { it.time }
         while (list.size > MAX_MESSAGES) list.removeAt(0)
         persistMessages()
     }

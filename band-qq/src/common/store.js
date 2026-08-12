@@ -121,10 +121,17 @@ export function createStore(storageImpl) {
     async getMessages(targetId) {
       await this.ensureInit()
       const msgs = messagesByTarget[targetId]
-      if (msgs) return msgs
+      if (msgs) {
+        // 读取时也按 time 升序兜底，兼容早期缓存里未排序的数据
+        if (msgs.length > 1) msgs.sort((a, b) => (a.time || 0) - (b.time || 0))
+        return msgs
+      }
       const raw = await cache.get(MSG_PREFIX + targetId, '[]')
       try {
         messagesByTarget[targetId] = JSON.parse(raw)
+        if (messagesByTarget[targetId].length > 1) {
+          messagesByTarget[targetId].sort((a, b) => (a.time || 0) - (b.time || 0))
+        }
       } catch (e) {
         messagesByTarget[targetId] = []
       }
@@ -172,6 +179,8 @@ export function createStore(storageImpl) {
           is_self: msg.is_self === true,
           time: msg.time || Date.now()
         })
+        // 按时间升序排列，保证消息顺序不乱（秒/毫秒混用也统一比较）
+        messages.sort((a, b) => (a.time || 0) - (b.time || 0))
         while (messages.length > MAX_MESSAGES) messages.shift()
         messagesByTarget[key] = messages
         await cache.set(MSG_PREFIX + key, JSON.stringify(messages.slice(-CACHE_MESSAGES)))
