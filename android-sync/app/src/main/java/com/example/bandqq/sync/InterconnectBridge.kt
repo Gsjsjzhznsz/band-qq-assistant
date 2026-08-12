@@ -47,6 +47,10 @@ object InterconnectBridge {
     @Volatile
     private var currentNode: Node? = null
 
+    /** 是否存在尚未完成的连接链路（防止重连循环并发触发多条鉴权/注册链路）。 */
+    @Volatile
+    private var connecting: Boolean = false
+
     @Volatile
     private var lastPongMs: Long = 0L
 
@@ -80,7 +84,10 @@ object InterconnectBridge {
     private val registeredNodes = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private fun registerListener(node: Node) {
-        val messageApi = messageApi ?: return
+        val messageApi = messageApi ?: run {
+            connecting = false
+            return
+        }
         // 幂等：若该节点已注册过则先移除旧 listener，确保不会叠加多个回调
         if (registeredNodes.remove(node.id)) {
             LogBus.log(TAG, LogLevel.DEBUG, "registerListener idempotent remove old listener for ${node.id}")
@@ -90,17 +97,20 @@ object InterconnectBridge {
             .addOnSuccessListener {
                 registeredNodes.add(node.id)
                 LogBus.log(TAG, LogLevel.DEBUG, "registerListener ok")
+                connecting = false
                 startHeartbeat()
             }
             .addOnFailureListener { error ->
                 val msg = error.message.orEmpty()
                 if (msg.contains("You have registered", ignoreCase = true)) {
                     LogBus.log(TAG, LogLevel.WARN, "listener already registered, continue")
+                    connecting = false
                     startHeartbeat()
                 } else {
                     LogBus.log(TAG, LogLevel.ERROR, "registerListener failed: $error")
                     SyncState.bandConnected = false
                     BandStateBus.notify(false)
+                    connecting = false
                 }
             }
     }
@@ -144,6 +154,7 @@ object InterconnectBridge {
             LogBus.log(TAG, LogLevel.ERROR, "connect: not initialized")
             SyncState.bandConnected = false
             BandStateBus.notify(false)
+            connecting = false
             return
         }
         nodeApi.connectedNodes
@@ -151,7 +162,10 @@ object InterconnectBridge {
                 if (nodes.isEmpty()) {
                     LogBus.log(TAG, LogLevel.WARN, "connect: 未发现已连接的手环，请确认小米运动健康已连接手环")
                     SyncState.bandConnected = false
+                    // 清除可能过期的陈旧节点，避免重连循环反复走 re-auth 快路径
+                    currentNode = null
                     BandStateBus.notify(false)
+                    connecting = false
                     return@addOnSuccessListener
                 }
                 currentNode = nodes[0]
@@ -162,11 +176,15 @@ object InterconnectBridge {
                 LogBus.log(TAG, LogLevel.ERROR, "connect: getConnectedNodes failed: $e")
                 SyncState.bandConnected = false
                 BandStateBus.notify(false)
+                connecting = false
             }
     }
 
     private fun auth(node: Node) {
-        val authApi = authApi ?: return
+        val authApi = authApi ?: run {
+            connecting = false
+            return
+        }
         authApi.checkPermissions(node.id, arrayOf(Permission.DEVICE_MANAGER))
             .addOnSuccessListener { results ->
                 var needRequest = false
@@ -190,7 +208,10 @@ object InterconnectBridge {
     }
 
     private fun openApp(node: Node) {
-        val nodeApi = nodeApi ?: return
+        val nodeApi = nodeApi ?: run {
+            connecting = false
+            return
+        }
         nodeApi.launchWearApp(node.id, WEAR_ENTRY_ROUTE)
             .addOnSuccessListener {
                 LogBus.log(TAG, LogLevel.DEBUG, "openApp: 已在手环上拉起应用")
@@ -258,15 +279,22 @@ object InterconnectBridge {
         stopReconnectLoop()
         reconnectJob = heartbeatScope.launch {
             while (isActive) {
-                if (!SyncState.bandConnected) {
-                    val node = currentNode
-                    if (node != null) {
-                        LogBus.log(TAG, LogLevel.WARN, "reconnect: re-auth node ${node.id}")
-                        auth(node)
-                    } else {
-                        LogBus.log(TAG, LogLevel.WARN, "reconnect: no node, retry connect")
-                        connect()
+                try {
+                    // connecting 防止上一条链路未终结时又发起新的鉴权/注册，避免 addListener 重复注册
+                    if (!SyncState.bandConnected && !connecting) {
+                        connecting = true
+                        val node = currentNode
+                        if (node != null) {
+                            LogBus.log(TAG, LogLevel.WARN, "reconnect: re-auth node ${node.id}")
+                            auth(node)
+                        } else {
+                            LogBus.log(TAG, LogLevel.WARN, "reconnect: no node, retry connect")
+                            connect()
+                        }
                     }
+                } catch (t: Throwable) {
+                    LogBus.log(TAG, LogLevel.ERROR, "reconnect loop error: ${t.message}")
+                    connecting = false
                 }
                 delay(RECONNECT_INTERVAL_MS)
             }
