@@ -35,6 +35,7 @@ object InterconnectBridge {
 
     private const val PING_INTERVAL_MS = 3000L
     private const val TIMEOUT_MS = 10000L
+    private const val RECONNECT_INTERVAL_MS = 5000L
 
     private var broker: MessageBroker? = null
     private var context: Context? = null
@@ -58,6 +59,7 @@ object InterconnectBridge {
 
     private val heartbeatScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var heartbeatJob: Job? = null
+    private var reconnectJob: Job? = null
 
     /**
      * 注册手环消息监听。
@@ -108,10 +110,12 @@ object InterconnectBridge {
         broker.bandSender = { frame -> sendToBand(frame) }
         broker.onBandPong = { onPong() }
         SyncState.bandConnected = false
+        startReconnectLoop()
     }
 
     fun unregister(broker: MessageBroker) {
         if (this.broker === broker) this.broker = null
+        stopReconnectLoop()
         stopHeartbeat()
         release()
     }
@@ -247,6 +251,32 @@ object InterconnectBridge {
     private fun stopHeartbeat() {
         heartbeatJob?.cancel()
         heartbeatJob = null
+    }
+
+    /** 启动自动重连循环：离线时周期性重建与手环的互联通道。 */
+    private fun startReconnectLoop() {
+        stopReconnectLoop()
+        reconnectJob = heartbeatScope.launch {
+            while (isActive) {
+                if (!SyncState.bandConnected) {
+                    val node = currentNode
+                    if (node != null) {
+                        LogBus.log(TAG, LogLevel.WARN, "reconnect: re-auth node ${node.id}")
+                        auth(node)
+                    } else {
+                        LogBus.log(TAG, LogLevel.WARN, "reconnect: no node, retry connect")
+                        connect()
+                    }
+                }
+                delay(RECONNECT_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** 停止自动重连循环。 */
+    private fun stopReconnectLoop() {
+        reconnectJob?.cancel()
+        reconnectJob = null
     }
 
     private fun sendPing() {
