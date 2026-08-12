@@ -127,7 +127,7 @@ fun ContactScreen() {
                         colors = CardDefaults.defaultColors(),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(start = 0.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {

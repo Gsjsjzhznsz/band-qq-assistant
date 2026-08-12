@@ -1,8 +1,7 @@
 <template>
   <div class="page">
     <div class="top-row">
-      <image class="btn" src="../../common/ui/back.png" onclick="goBack"></image>
-      <text class="msg-count">{{messages.length}} 条</text>
+      <image class="btn-back" src="../../common/ui/back.png" onclick="goBack"></image>
     </div>
     <div class="title-bar">
       <text class="page-title">{{name}}</text>
@@ -26,9 +25,9 @@
 
 <style>
   .page { flex-direction: column; background-color: #000000; height: 466px; }
-  .top-row { height: 78px; flex-direction: row; align-items: flex-start; justify-content: space-between; padding: 6px 8px 0 0; }
+  .top-row { height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
-  .msg-count { font-size: 14px; color: rgba(255, 255, 255, 0.5); margin-right: 8px; margin-top: 6px; }
+  .btn-back { width: 48px; height: 34px; }
   .title-bar { height: 34px; flex-direction: row; align-items: center; justify-content: center; }
   .send-status { height: 26px; flex-direction: row; align-items: center; justify-content: center; }
   .send-status-text { font-size: 16px; color: #0d84ff; }
@@ -76,6 +75,8 @@
           convName = m.name || ''
         }
       }
+      // 系统可能对完整 uri 二次编码，名称出现 %xx 时再解一次
+      try { if (convName.indexOf('%') >= 0) convName = decodeURIComponent(convName) } catch (e) {}
       if (!targetId) {
         const st = this.$app.$def.store
         const last = st.getLastTarget()
