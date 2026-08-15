@@ -1,5 +1,7 @@
 # 小米手环9 QQ 消息助手（band-qq）
 
+> **本项目代码由 [opencode](https://opencode.ai)（AI 编程代理）编写。**
+
 在小米手环 9 上收发 QQ 消息的三端小程序：
 
 - **手环端**：Vela 快应用，展示联系人、收发文字消息、快捷回复、查看聊天记录
@@ -106,7 +108,7 @@ SnowLuma 是面向 QQ 客户端的 TypeScript 互操作运行时，将 QQ 原生
 
 ## 致谢
 
-- 本项目代码由 [opencode](https://opencode.ai) 辅助编写。
+- 本项目全部代码由 [opencode](https://opencode.ai)（AI 编程代理）编写完成，包括手环端 Vela 快应用、Android 同步器及全部文档。
 - 协议端使用 [SnowLuma](https://github.com/SnowLuma/SnowLuma)，项目参考了 [LagrangeV2](https://github.com/LagrangeDev/LagrangeV2)
   与 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 的实现思路。
 
