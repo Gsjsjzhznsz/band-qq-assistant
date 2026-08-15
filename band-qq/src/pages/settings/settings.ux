@@ -15,13 +15,13 @@
         <text class="row-label">协议端</text>
         <text class="row-value">{{protocolText}}</text>
       </div>
-      <div class="card row">
+      <div class="card row" @click="askClear">
         <text class="row-label">清空全部聊天记录</text>
-        <text class="row-value danger" onclick="askClear">清空</text>
+        <text class="row-value danger">清空</text>
       </div>
     </scroll>
 
-    <div class="mask" show="{{confirmShow}}">
+    <div class="mask" if="{{confirmShow}}">
       <div class="confirm-box">
         <text class="confirm-title">警告</text>
         <text class="confirm-desc">将清空本手环与手机端保存的全部聊天记录，此操作不可恢复，确定继续？</text>
@@ -35,7 +35,7 @@
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; }
+  .page { width: 100%; height: 100%; flex-direction: column; background-color: #000000; }
   .top-row { height: 78px; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
   .title-bar { height: 40px; align-items: center; justify-content: center; }
@@ -46,18 +46,19 @@
   .row-value { flex: 1; text-align: right; font-size: 20px; color: #07c160; }
   .row-value.danger { color: #ff5a5a; }
   .section { font-size: 16px; color: rgba(255, 255, 255, 0.6); padding: 8px 12px; }
-  .body { height: 384px; width: 192px; flex-direction: column; }
+  .body { height: 372px; width: 192px; flex-direction: column; }
   .mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.65); align-items: center; justify-content: center; }
-  .confirm-box { width: 336px; background-color: #2b2b2b; border-radius: 20px; padding: 24px; flex-direction: column; }
-  .confirm-title { font-size: 24px; color: #ff5a5a; font-weight: bold; text-align: center; margin-bottom: 12px; }
-  .confirm-desc { font-size: 20px; color: #ffffff; text-align: center; margin-bottom: 24px; }
+  .confirm-box { width: 176px; background-color: #2b2b2b; border-radius: 14px; padding: 14px; flex-direction: column; }
+  .confirm-title { font-size: 18px; color: #ff5a5a; font-weight: bold; text-align: center; margin-bottom: 8px; }
+  .confirm-desc { font-size: 14px; color: #ffffff; text-align: center; margin-bottom: 14px; }
   .confirm-btns { flex-direction: row; justify-content: space-between; }
-  .confirm-cancel { flex: 1; text-align: center; padding: 12px 0; font-size: 20px; color: #999999; background-color: #3a3a3a; border-radius: 16px; margin-right: 12px; }
-  .confirm-ok { flex: 1; text-align: center; padding: 12px 0; font-size: 20px; color: #ffffff; background-color: #ff5a5a; border-radius: 16px; }
+  .confirm-cancel { flex: 1; text-align: center; padding: 9px 0; font-size: 16px; color: #999999; background-color: #3a3a3a; border-radius: 12px; margin-right: 8px; }
+  .confirm-ok { flex: 1; text-align: center; padding: 9px 0; font-size: 16px; color: #ffffff; background-color: #ff5a5a; border-radius: 12px; }
 </style>
 
 <script>
   import router from '@system.router'
+  import prompt from '@system.prompt'
   import protocol from '../../common/protocol'
 
   export default {
@@ -101,14 +102,23 @@
     },
     async doClear() {
       this.confirmShow = false
-      const api = this.$app.$def.api
+      const app = this.$app.$def
+      const store = app.store
+      const api = app.api
+      // 本地立即清空，不依赖网络发送结果
       try {
-        await api.send(protocol.clearAllHistory())
+        await store.clearAllMessages()
+        app.emit('cleared')
+        prompt.showToast({ message: '已清空' })
       } catch (e) {
-        console.error('clear all failed', e)
+        console.error('clear local fail', e)
       }
-      const store = this.$app.$def.store
-      await store.clearAllMessages()
+      // 通知手机端同步清空，失败不影响本地
+      try {
+        api.send(protocol.clearAllHistory())
+      } catch (e) {
+        console.error('clear remote fail', e)
+      }
     }
   }
 </script>

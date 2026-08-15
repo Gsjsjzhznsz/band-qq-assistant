@@ -13,7 +13,8 @@
     { "name": "system.router" },
     { "name": "system.app" },
     { "name": "system.device" },
-    { "name": "system.vibrator" }
+    { "name": "system.vibrator" },
+    { "name": "system.prompt" }
   ],
   "display": { "backgroundColor": "#000000" },
   "router": {

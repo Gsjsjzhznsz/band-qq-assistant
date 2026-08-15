@@ -9,8 +9,7 @@
     <div class="send-status" show="{{sendStatus}}">
       <text class="send-status-text">{{sendStatus}}</text>
     </div>
-    <scroll class="msg-area" scroll-y="true" scroll-top="{{scrollTop}}">
-      <div class="msg-item {{item.is_self ? 'self' : 'other'}}" for="{{item in messages}}">
+    <scroll id="msgList" class="msg-area" scroll-y="true" scroll-top="{{scrollTop}}">      <div class="msg-item {{item.is_self ? 'self' : 'other'}}" for="{{item in messages}}">
         <div class="msg-col {{item.is_self ? 'col-self' : 'col-other'}}">
           <text class="msg-name" if="{{item.message_type === 'group'}}">{{item.is_self ? '我' : item.sender_name}}</text>
           <text class="bubble {{item.is_self ? 'bubble-self' : 'bubble-other'}}">{{item.content}}</text>
@@ -24,7 +23,7 @@
 </template>
 
 <style>
-  .page { flex-direction: column; background-color: #000000; height: 466px; }
+  .page { width: 100%; height: 100%; flex-direction: column; background-color: #000000; }
   .top-row { height: 78px; flex-direction: row; align-items: flex-start; justify-content: center; padding-top: 6px; }
   .btn { width: 102px; height: 72px; }
   .btn-back { width: 102px; height: 72px; }
@@ -33,7 +32,7 @@
   .send-status-text { font-size: 16px; color: #0d84ff; }
   .page-title { font-size: 22px; color: #ffffff; }
   .new-dot { width: 14px; height: 14px; border-radius: 7px; background-color: #ff5a5a; margin-left: 10px; }
-  .msg-area { flex: 1; height: 288px; flex-direction: column; }
+  .msg-area { height: 268px; flex-direction: column; }
   .msg-item { width: 192px; padding: 0 8px; margin-top: 10px; flex-direction: row; flex-shrink: 0; }
   .self { justify-content: flex-end; }
   .other { justify-content: flex-start; }
@@ -161,8 +160,16 @@
       if (msgs.length > this.lastCount) this.hasNew = true
       this.lastCount = msgs.length
       this.messages = msgs
-      // 每次数据更新滚动到底部，确保新消息可见
-      this.scrollTop = this.lastCount * 60 + 10
+      // 每次数据更新滚动到底部，确保新消息可见（用足够大的值+递增 tick 保证触发）
+      this._scrollTick = (this._scrollTick || 0) + 1
+      this.scrollTop = 999999 + this._scrollTick
+      // 通过组件方法强制滚到底部（scroll-top 属性在某些版本上不生效，双保险）
+      const el = this.$element && this.$element('msgList')
+      if (el && el.scrollTo) {
+        setTimeout(() => {
+          try { el.scrollTo({ top: 999999, behavior: 'smooth' }) } catch (e) { console.error('scrollTo fail', e) }
+        }, 60)
+      }
     }
   }
 </script>
