@@ -18,5 +18,9 @@ build/
 .worktrees/
 .superpowers/
 
+# 内部开发文档与 IDE 配置
+docs/superpowers/
+.vscode/
+
 # ����
 node_modules/

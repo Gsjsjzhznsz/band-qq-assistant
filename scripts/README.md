@@ -20,7 +20,7 @@
 ```
 
 - 本机工具链（已安装到 D 盘）：Android SDK `D:\android-sdk`、JDK 17 `D:\android-build\jdk17`、
-  Gradle 8.7 `D:\android-build\gradle-8.7`、Gradle 缓存 `D:\android-build\gradle-home`。
+  Gradle `D:\android-build\gradle-8.13`（项目要求 8.13+，`gradle-8.7` 已无法满足）、Gradle 缓存 `D:\android-build\gradle-home`。
 - 若系统已配置 `ANDROID_HOME`/`JAVA_HOME` 则优先使用环境变量。
 - 产物复制到 `dist/`（默认 `assembleDebug`）。
 

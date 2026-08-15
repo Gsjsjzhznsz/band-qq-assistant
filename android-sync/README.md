@@ -1,12 +1,12 @@
 # Android 同步器（QQ 同步器）
 
-手环 QQ 助手 的手机端同步器：通过蓝牙互联桥接手环与 NapCatQQ（OneBot v11）。
+手环 QQ 助手 的手机端同步器：通过蓝牙互联桥接手环与 SnowLuma（OneBot v11）。
 
 ## 环境要求
 
 - Android Studio（Ladybug 或更新）+ JDK 17+
 - Android SDK：`compileSdk 34`、`minSdk 26`
-- Gradle 8.7（由 wrapper 自动下载）
+- Gradle 8.13（由 wrapper 自动下载）
 
 ## 导入与构建
 
@@ -24,11 +24,11 @@
 ## 配置
 
 打开 App 后设置：
-- **NapCat WS 地址**：默认 `ws://127.0.0.1:3001`
+- **SnowLuma WS 地址**：默认 `ws://127.0.0.1:3001`
 - **HTTP 地址**：默认 `http://127.0.0.1:3000`
-- **Access Token**：NapCat 若开启鉴权则填写，否则留空
+- **Access Token**：SnowLuma 若开启鉴权则填写，否则留空
 
-点击「探测 NapCat」检查 `127.0.0.1:3000` 是否可达；未装 NapCat APK 时会引导下载（AstrBot APK 方案见 `../docs/napcat-apk.md`）。
+点击「自动探测（局域网）」扫描本机 / 局域网发现 SnowLuma；也可用「测试 SnowLuma 连接」做真实连接测试。
 
 点击「启动同步」启动前台服务，保持互联通道与 OneBot 长连接。
 
