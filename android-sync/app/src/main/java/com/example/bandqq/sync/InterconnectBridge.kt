@@ -148,8 +148,12 @@ object InterconnectBridge {
         }
     }
 
-    /** 异步建立与手环的互联连接：发现设备 -> 鉴权 -> 拉起应用 -> 注册监听 */
-    fun connect() {
+    /**
+     * 异步建立与手环的互联连接：发现设备 -> 鉴权 -> 拉起应用 -> 注册监听。
+     * @param launchApp 是否拉起手环端应用。用户主动连接（开启服务/点击连接）为 true；
+     *                  自动重连为 false，避免用户退出手环应用后又被反复拉起。
+     */
+    fun connect(launchApp: Boolean = true) {
         val nodeApi = nodeApi ?: run {
             LogBus.log(TAG, LogLevel.ERROR, "connect: not initialized")
             SyncState.bandConnected = false
@@ -170,7 +174,7 @@ object InterconnectBridge {
                 }
                 currentNode = nodes[0]
                 LogBus.log(TAG, LogLevel.DEBUG, "connect: found device ${nodes[0].name}")
-                auth(nodes[0])
+                auth(nodes[0], launchApp)
             }
             .addOnFailureListener { e ->
                 LogBus.log(TAG, LogLevel.ERROR, "connect: getConnectedNodes failed: $e")
@@ -180,7 +184,7 @@ object InterconnectBridge {
             }
     }
 
-    private fun auth(node: Node) {
+    private fun auth(node: Node, launchApp: Boolean = true) {
         val authApi = authApi ?: run {
             connecting = false
             return
@@ -199,17 +203,23 @@ object InterconnectBridge {
                     LogBus.log(TAG, LogLevel.DEBUG, "auth: 已请求 DEVICE_MANAGER 权限，等待用户在运动健康中授权")
                 }
                 // 无论本次结果如何，继续尝试后续流程；连接真正可用取决于授权完成
-                openApp(node)
+                openApp(node, launchApp)
             }
             .addOnFailureListener { e ->
                 LogBus.log(TAG, LogLevel.ERROR, "auth check failed: $e")
-                openApp(node)
+                openApp(node, launchApp)
             }
     }
 
-    private fun openApp(node: Node) {
+    private fun openApp(node: Node, launchApp: Boolean = true) {
         val nodeApi = nodeApi ?: run {
             connecting = false
+            return
+        }
+        // 自动重连场景不拉起手环应用：用户退出手环应用后保持退出，避免反复被拉起
+        if (!launchApp) {
+            LogBus.log(TAG, LogLevel.DEBUG, "openApp: skip launchWearApp (auto reconnect), register listener anyway")
+            registerListener(node)
             return
         }
         nodeApi.launchWearApp(node.id, WEAR_ENTRY_ROUTE)
@@ -285,11 +295,11 @@ object InterconnectBridge {
                         connecting = true
                         val node = currentNode
                         if (node != null) {
-                            LogBus.log(TAG, LogLevel.WARN, "reconnect: re-auth node ${node.id}")
-                            auth(node)
+                            LogBus.log(TAG, LogLevel.WARN, "reconnect: re-auth node ${node.id} (no launch)")
+                            auth(node, launchApp = false)
                         } else {
-                            LogBus.log(TAG, LogLevel.WARN, "reconnect: no node, retry connect")
-                            connect()
+                            LogBus.log(TAG, LogLevel.WARN, "reconnect: no node, retry connect (no launch)")
+                            connect(launchApp = false)
                         }
                     }
                 } catch (t: Throwable) {
