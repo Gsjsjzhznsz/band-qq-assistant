@@ -110,6 +110,10 @@ SnowLuma 是面向 QQ 客户端的 TypeScript 互操作运行时，将 QQ 原生
 - 协议端使用 [SnowLuma](https://github.com/SnowLuma/SnowLuma)，项目参考了 [LagrangeV2](https://github.com/LagrangeDev/LagrangeV2)
   与 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 的实现思路。
 
+## 许可证
+
+本项目基于 [MIT License](LICENSE) 开源。
+
 ## 免责声明
 
 本项目仅用于学习与技术研究，请遵守《QQ 用户协议》及适用法律；使用风险自负，开发者不对因使用本项目造成的任何损失负责。
