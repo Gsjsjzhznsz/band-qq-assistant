@@ -1,6 +1,7 @@
 package com.example.bandqq.config
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -16,7 +17,8 @@ data class EndpointConfig(
 )
 
 data class AppConfig(
-    val endpoint: EndpointConfig = EndpointConfig("ws://127.0.0.1:3001", "", "http://127.0.0.1:3000", "")
+    val endpoint: EndpointConfig = EndpointConfig("ws://127.0.0.1:3001", "", "http://127.0.0.1:3000", ""),
+    val autoStart: Boolean = false
 )
 
 object ConfigHolder {
@@ -30,6 +32,7 @@ class ConfigManager(private val context: Context) {
         val WS_TOKEN = stringPreferencesKey("ws_token")
         val HTTP = stringPreferencesKey("http_url")
         val HTTP_TOKEN = stringPreferencesKey("http_token")
+        val AUTO_START = booleanPreferencesKey("auto_start")
     }
 
     suspend fun load(): AppConfig {
@@ -41,7 +44,8 @@ class ConfigManager(private val context: Context) {
                 wsToken = prefs[Keys.WS_TOKEN] ?: "",
                 httpUrl = prefs[Keys.HTTP] ?: default.endpoint.httpUrl,
                 httpToken = prefs[Keys.HTTP_TOKEN] ?: ""
-            )
+            ),
+            autoStart = prefs[Keys.AUTO_START] ?: default.autoStart
         )
         ConfigHolder.config = cfg
         return cfg
@@ -53,6 +57,7 @@ class ConfigManager(private val context: Context) {
             prefs[Keys.WS_TOKEN] = config.endpoint.wsToken
             prefs[Keys.HTTP] = config.endpoint.httpUrl
             prefs[Keys.HTTP_TOKEN] = config.endpoint.httpToken
+            prefs[Keys.AUTO_START] = config.autoStart
         }
         ConfigHolder.config = config
     }

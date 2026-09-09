@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.example.bandqq.config.ConfigManager
+import com.example.bandqq.sync.SyncService
 import com.example.bandqq.ui.BandQQApp
 import com.example.bandqq.ui.BandQQTheme
 
@@ -21,7 +23,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             BandQQTheme { BandQQApp() }
             BluetoothPermissionRequester()
+            AutoStartLauncher()
         }
+    }
+}
+
+/** 若配置开启「启动时自动同步」，进入应用即拉起同步服务。 */
+@Composable
+private fun AutoStartLauncher() {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val autoStart = runCatching { ConfigManager(context).load().autoStart }.getOrDefault(false)
+        if (autoStart) SyncService.start(context)
     }
 }
 
