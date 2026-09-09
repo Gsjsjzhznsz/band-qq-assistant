@@ -44,8 +44,16 @@
 
 ## 环境与恢复
 
-- 容器会周期性重置（已 3 次）：/opt/jdk、/opt/android-sdk 丢失，仓库需重新 clone
-- 恢复步骤：clone 仓库 → 装 Android SDK（cmdline-tools + platforms;android-37 + build-tools;37.0.0）→ 符号链接修复 → 编译
+- 容器会周期性重置（已 3 次）：构建工具全部丢失，仓库需重新 clone
+- 恢复步骤（2026-09-09 验证）：
+  1. Java：系统自带 OpenJDK 21 是 JRE（无 javac），需下载 Temurin JDK 17（Adoptium API）到 /home/z/tools/
+  2. Gradle 8.13 bin.zip 解压到 /home/z/tools/gradle-8.13
+  3. Android cmdline-tools 解压到 /home/z/android-sdk/cmdline-tools/latest
+  4. sdkmanager 装 build-tools;37.0.0 + platform-tools + platforms;android-37.0
+  5. **关键**：mv platforms/android-37.0 platforms/android-37（直接重命名，symlink 无效），并改写 package.xml 的 path="platforms;android-37" 与 source.properties 的 AndroidVersion.ApiLevel=37
+  6. gradle.properties 保留 android.suppressUnsupportedCompileSdk=37.0；local.properties 写 sdk.dir
+  7. 构建：JAVA_HOME=/home/z/tools/jdk-17.0.20.1+1 gradle assembleRelease
+- miuix 0.9.3 的 AAR metadata 要求 minCompileSdk=37，因此 compileSdk 不可降到 36
 - 记忆协议：本文件 + worklog.md 每里程碑 push，新会话克隆即恢复
 
 ## GitHub 操作
